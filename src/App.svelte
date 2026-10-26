@@ -8,7 +8,7 @@
 
 	type View = 'colm' | 'list';
 	type PopupKind = 'none' | 'delete' | 'new' | 'info' | 'actions' | 'rename';
-	type ActionId = 'open' | 'rename' | 'duplicate' | 'copy' | 'reveal' | 'info' | 'trash';
+	type ActionId = 'open' | 'rename' | 'duplicate' | 'compress' | 'copy' | 'reveal' | 'info' | 'trash';
 
 	let view: View = $state('colm');
 	let cwd = $state('');
@@ -36,6 +36,7 @@
 		{ id: 'open', label: 'Open' },
 		{ id: 'rename', label: 'Rename' },
 		{ id: 'duplicate', label: 'Duplicate' },
+		{ id: 'compress', label: 'Compress' },
 		{ id: 'copy', label: 'Copy path' },
 		{ id: 'reveal', label: 'Show in Finder' },
 		{ id: 'info', label: 'Info' },
@@ -60,7 +61,9 @@
 	});
 	let current: Entry | undefined = $derived(visible[selected]);
 	let title = $derived(cwd ? nameOf(cwd) : '');
-	let canGoBack = $derived(cwd !== '' && parentOf(cwd) !== null);
+	// the home folder is the top of ReFile: BACK disappears there
+	let home = $state('');
+	let canGoBack = $derived(cwd !== '' && cwd !== home && parentOf(cwd) !== null);
 
 	// ── navigation ──
 
@@ -94,6 +97,7 @@
 	}
 
 	function back() {
+		if (!canGoBack) return;
 		const parent = parentOf(cwd);
 		if (parent) navigate(parent, nameOf(cwd));
 	}
@@ -218,6 +222,13 @@
 					renameInput?.setSelectionRange(0, dot > 0 ? dot : entry.name.length);
 					break;
 				}
+				case 'compress': {
+					const zip = await files.compress(entry.path);
+					closePopup();
+					await reload(nameOf(zip));
+					await scrollSelectedIntoView();
+					break;
+				}
 				case 'duplicate': {
 					const copy = await files.duplicate(entry.path);
 					closePopup();
@@ -339,7 +350,10 @@
 	}
 
 	onMount(() => {
-		files.homeDir().then(home => navigate(home));
+		files.homeDir().then(dir => {
+			home = dir;
+			navigate(dir);
+		});
 		// files may change in other apps while ReFile is in the background
 		const refresh = () => reload();
 		window.addEventListener('focus', refresh);
@@ -373,7 +387,9 @@
 <button class="side switch switch-colm" class:ink-mark-v={view === 'colm'} onclick={() => (view = 'colm')} title="Columns (C)">COLM</button>
 <button class="side switch switch-list" class:ink-mark-v={view === 'list'} onclick={() => (view = 'list')} title="List (L)">LIST</button>
 
-<button class="side boxed nav-back" onclick={back} disabled={!canGoBack} title="Back (←)">BACK</button>
+{#if canGoBack}
+	<button class="side boxed nav-back" onclick={back} title="Back (←)">BACK</button>
+{/if}
 <button class="side boxed nav-new" onclick={openNewFolder} title="New folder (N)">NEW</button>
 
 <button class="side plain nav-info" onclick={openInfo} title="Info (I)">INFO</button>
@@ -452,7 +468,7 @@
 
 {#if popup === 'delete' && current}
 	<Popup onclose={closePopup}>
-		<p class="pop-text">Move <span class="ink-mark">{current.name}</span> to Trash?</p>
+		<p class="pop-text">Move “{current.name}” to Trash?</p>
 		{#if popupError}<p class="pop-error">{popupError}</p>{/if}
 		<div class="pop-actions">
 			<button class="pop-btn" onclick={moveToTrash}>YES</button>

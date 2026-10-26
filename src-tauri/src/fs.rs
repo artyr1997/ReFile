@@ -245,6 +245,38 @@ pub fn duplicate(path: &Path) -> Result<PathBuf> {
     Ok(target)
 }
 
+/// "name.zip", then "name 2.zip", … next to the item — like Finder's Compress.
+fn zip_name(parent: &Path, path: &Path) -> PathBuf {
+    let base = name_of(path);
+    let mut n = 1;
+    loop {
+        let file = if n == 1 { format!("{base}.zip") } else { format!("{base} {n}.zip") };
+        let candidate = parent.join(file);
+        if !candidate.exists() {
+            return candidate;
+        }
+        n += 1;
+    }
+}
+
+/// Zips a file or folder next to itself with macOS `ditto` (the tool Finder uses,
+/// keeps resource forks and metadata) and returns the archive's path.
+pub fn compress(path: &Path) -> Result<PathBuf> {
+    let parent = path.parent().ok_or("Can't compress this item.")?;
+    let target = zip_name(parent, path);
+    let status = std::process::Command::new("ditto")
+        .args(["-c", "-k", "--sequesterRsrc", "--keepParent"])
+        .arg(path)
+        .arg(&target)
+        .status()
+        .map_err(err)?;
+    if !status.success() {
+        let _ = fs::remove_file(&target);
+        return Err("Couldn't compress this item.".into());
+    }
+    Ok(target)
+}
+
 /// Moves a file or folder to the system Trash (recoverable), never deletes outright.
 pub fn move_to_trash(path: &Path) -> Result<()> {
     trash::delete(path).map_err(err)
@@ -309,6 +341,20 @@ mod tests {
         let folder_copy = duplicate(&dir.join("box")).unwrap();
         assert_eq!(name_of(&folder_copy), "box copy");
         assert_eq!(fs::read_to_string(folder_copy.join("inner.md")).unwrap(), "y");
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn compress_names_archives_like_finder() {
+        let dir = temp_dir("zip");
+        fs::create_dir(dir.join("box")).unwrap();
+        fs::write(dir.join("box/a.txt"), "hello").unwrap();
+
+        let first = compress(&dir.join("box")).unwrap();
+        let second = compress(&dir.join("box")).unwrap();
+        assert_eq!(name_of(&first), "box.zip");
+        assert_eq!(name_of(&second), "box 2.zip");
+        assert!(fs::metadata(&first).unwrap().len() > 0);
         fs::remove_dir_all(&dir).unwrap();
     }
 

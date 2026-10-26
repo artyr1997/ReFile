@@ -30,6 +30,7 @@ export const files = {
 	createFolder: (parent: string, name: string) => invoke<string>('create_folder', { parent, name }),
 	rename: (path: string, name: string) => invoke<string>('rename_item', { path, name }),
 	duplicate: (path: string) => invoke<string>('duplicate_item', { path }),
+	compress: (path: string) => invoke<string>('compress_item', { path }),
 	reveal: (path: string) => invoke<void>('reveal_in_finder', { path }),
 	moveToTrash: (path: string) => invoke<void>('move_to_trash', { path }),
 	open: (path: string) => invoke<void>('open_path', { path }),

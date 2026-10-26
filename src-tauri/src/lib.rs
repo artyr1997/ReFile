@@ -38,6 +38,11 @@ fn rename_item(path: String, name: String) -> CmdResult<String> {
 }
 
 #[tauri::command]
+fn compress_item(path: String) -> CmdResult<String> {
+    fs::compress(&PathBuf::from(path)).map(|p| p.to_string_lossy().into_owned())
+}
+
+#[tauri::command]
 fn duplicate_item(path: String) -> CmdResult<String> {
     fs::duplicate(&PathBuf::from(path)).map(|p| p.to_string_lossy().into_owned())
 }
@@ -104,6 +109,7 @@ pub fn run() {
             create_folder,
             rename_item,
             duplicate_item,
+            compress_item,
             reveal_in_finder,
             move_to_trash,
             open_path,
