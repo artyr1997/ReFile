@@ -561,8 +561,8 @@
 		max-width: 50%;
 		font-family: 'Kurale', serif;
 		font-weight: 400;
-		font-size: 30px;
-		line-height: 40px;
+		font-size: 24px;
+		line-height: 32px;
 		letter-spacing: 0.04em;
 		white-space: nowrap;
 		overflow: hidden;
@@ -602,7 +602,7 @@
 		border: none;
 		padding: 0;
 		font-family: 'Kurale', serif;
-		font-size: 19px;
+		font-size: 16px;
 		line-height: 1.2;
 		color: var(--text);
 		text-align: left;
@@ -665,7 +665,7 @@
 		padding: 0;
 		text-align: left;
 		font-family: 'Kurale', serif;
-		font-size: 18px;
+		font-size: 16px;
 		line-height: 1.2;
 		color: var(--text);
 		cursor: url('/ink/hand.svg'), pointer;
@@ -684,7 +684,7 @@
 
 	.empty {
 		font-family: 'Kurale', serif;
-		font-size: 18px;
+		font-size: 16px;
 		color: var(--muted);
 		opacity: 0.45;
 	}
@@ -709,7 +709,7 @@
 	}
 
 	.cell {
-		font-size: 17px;
+		font-size: 16px;
 		white-space: nowrap;
 	}
 
@@ -719,7 +719,7 @@
 		grid-template-columns: auto 1fr;
 		gap: 14px 20px;
 		font-family: 'Kurale', serif;
-		font-size: 17px;
+		font-size: 16px;
 	}
 
 	.details dt {
@@ -737,7 +737,7 @@
 
 	.info-name {
 		font-family: 'Kurale', serif;
-		font-size: 22px;
+		font-size: 24px;
 		text-align: center;
 		overflow-wrap: anywhere;
 	}
@@ -757,8 +757,8 @@
 		border: none;
 		outline: none;
 		font-family: 'Kurale', serif;
-		font-size: 30px;
-		line-height: 40px;
+		font-size: 24px;
+		line-height: 32px;
 		text-align: center;
 		color: var(--text);
 	}
