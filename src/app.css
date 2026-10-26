@@ -67,6 +67,17 @@ input:focus::placeholder {
 	box-decoration-break: clone;
 }
 
+/* Same stroke drawn top-to-bottom, for vertical text (COLM / LIST).
+   .side.ink-mark-v outranks the buttons' own transparent background. */
+.ink-mark-v,
+.side.ink-mark-v {
+	background:
+		url('/ink/brush-top.svg') center top / 100% auto no-repeat,
+		url('/ink/brush-bottom.svg') center bottom / 100% auto no-repeat,
+		url('/ink/brush-mid-v.svg') center 0.65em / 100% calc(100% - 1.3em) no-repeat;
+	color: var(--bg);
+}
+
 /* Lines fade out near the edges of scrollable blocks (see lib/scrollFade.ts) */
 @property --fade-top {
 	syntax: '<length>';
@@ -113,7 +124,20 @@ input:focus::placeholder {
 	cursor: url('/ink/hand.svg'), pointer;
 }
 
-/* plain text buttons (INFO, DEL, inactive view switch) */
+/* view switch (COLM / LIST): the active one is inked with a vertical brushstroke */
+.side.switch {
+	width: 42px;
+	padding: 0.55em 0 0;
+	opacity: 0.75;
+	transition: opacity 200ms ease;
+}
+
+.side.switch:hover,
+.side.switch.ink-mark-v {
+	opacity: 1;
+}
+
+/* plain text buttons (INFO, DEL) */
 .side.plain {
 	opacity: 0.75;
 	transition: opacity 200ms ease;

@@ -164,18 +164,85 @@ pub fn info(path: &Path) -> Result<Info> {
     })
 }
 
-/// Creates `parent/name` and returns its path. The name must be a single, new item.
-pub fn create_folder(parent: &Path, name: &str) -> Result<PathBuf> {
+/// A single item name: not empty, no path separators.
+fn valid_name(name: &str) -> Result<&str> {
     let name = name.trim();
     if name.is_empty() || name == "." || name == ".." || name.contains('/') || name.contains('\0') {
         return Err("Use a name without “/”.".into());
     }
+    Ok(name)
+}
+
+/// Creates `parent/name` and returns its path. The name must be a single, new item.
+pub fn create_folder(parent: &Path, name: &str) -> Result<PathBuf> {
+    let name = valid_name(name)?;
     let path = parent.join(name);
     if path.exists() {
         return Err(format!("“{name}” already exists here."));
     }
     fs::create_dir(&path).map_err(err)?;
     Ok(path)
+}
+
+/// Renames an item in place; never overwrites another item.
+pub fn rename(path: &Path, new_name: &str) -> Result<PathBuf> {
+    let new_name = valid_name(new_name)?;
+    let parent = path.parent().ok_or("Can't rename this item.")?;
+    let target = parent.join(new_name);
+    if target == path {
+        return Ok(target);
+    }
+    // a case-only change ("photo" → "Photo") is the same item on macOS, so allow it
+    let same_item = target.to_string_lossy().to_lowercase() == path.to_string_lossy().to_lowercase();
+    if target.exists() && !same_item {
+        return Err(format!("“{new_name}” already exists here."));
+    }
+    fs::rename(path, &target).map_err(err)?;
+    Ok(target)
+}
+
+/// "name copy.ext", then "name copy 2.ext", … — like Finder.
+fn copy_name(parent: &Path, path: &Path) -> PathBuf {
+    let is_dir = path.is_dir() && !is_bundle(path);
+    let (stem, ext) = match (path.file_stem(), path.extension()) {
+        (Some(stem), Some(ext)) if !is_dir => (stem.to_string_lossy().into_owned(), format!(".{}", ext.to_string_lossy())),
+        _ => (name_of(path), String::new()),
+    };
+    let mut n = 1;
+    loop {
+        let suffix = if n == 1 { " copy".to_string() } else { format!(" copy {n}") };
+        let candidate = parent.join(format!("{stem}{suffix}{ext}"));
+        if !candidate.exists() {
+            return candidate;
+        }
+        n += 1;
+    }
+}
+
+fn copy_recursive(from: &Path, to: &Path) -> std::io::Result<()> {
+    let meta = fs::symlink_metadata(from)?;
+    if meta.file_type().is_symlink() {
+        #[cfg(unix)]
+        return std::os::unix::fs::symlink(fs::read_link(from)?, to);
+    }
+    if meta.is_dir() {
+        fs::create_dir(to)?;
+        for item in fs::read_dir(from)? {
+            let item = item?;
+            copy_recursive(&item.path(), &to.join(item.file_name()))?;
+        }
+        Ok(())
+    } else {
+        fs::copy(from, to).map(|_| ())
+    }
+}
+
+/// Copies a file or folder next to itself and returns the copy's path.
+pub fn duplicate(path: &Path) -> Result<PathBuf> {
+    let parent = path.parent().ok_or("Can't duplicate this item.")?;
+    let target = copy_name(parent, path);
+    copy_recursive(path, &target).map_err(err)?;
+    Ok(target)
 }
 
 /// Moves a file or folder to the system Trash (recoverable), never deletes outright.
@@ -219,6 +286,29 @@ mod tests {
         let folder = info(&dir).unwrap();
         assert_eq!(folder.items, Some(3));
         assert_eq!(info(&dir.join("b.txt")).unwrap().kind, "TXT file");
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn rename_and_duplicate() {
+        let dir = temp_dir("rename");
+        fs::write(dir.join("note.txt"), "x").unwrap();
+        fs::create_dir(dir.join("box")).unwrap();
+        fs::write(dir.join("box/inner.md"), "y").unwrap();
+
+        let renamed = rename(&dir.join("note.txt"), "letter.txt").unwrap();
+        assert!(renamed.exists() && !dir.join("note.txt").exists());
+        assert!(rename(&renamed, "box").is_err(), "never overwrites");
+        assert!(rename(&renamed, "Letter.txt").is_ok(), "case-only rename is allowed");
+
+        let first = duplicate(&dir.join("Letter.txt")).unwrap();
+        let second = duplicate(&dir.join("Letter.txt")).unwrap();
+        assert_eq!(name_of(&first), "Letter copy.txt");
+        assert_eq!(name_of(&second), "Letter copy 2.txt");
+
+        let folder_copy = duplicate(&dir.join("box")).unwrap();
+        assert_eq!(name_of(&folder_copy), "box copy");
+        assert_eq!(fs::read_to_string(folder_copy.join("inner.md")).unwrap(), "y");
         fs::remove_dir_all(&dir).unwrap();
     }
 

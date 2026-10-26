@@ -7,7 +7,8 @@
 	import type { Entry, Info } from './lib/files';
 
 	type View = 'colm' | 'list';
-	type PopupKind = 'none' | 'delete' | 'new' | 'info';
+	type PopupKind = 'none' | 'delete' | 'new' | 'info' | 'actions' | 'rename';
+	type ActionId = 'open' | 'rename' | 'duplicate' | 'copy' | 'reveal' | 'info' | 'trash';
 
 	let view: View = $state('colm');
 	let cwd = $state('');
@@ -29,6 +30,29 @@
 	let popupError = $state('');
 	let info: Info | null = $state(null);
 	let newNameInput: HTMLInputElement | undefined = $state();
+
+	// actions menu (E or right click) and rename
+	const actions: { id: ActionId; label: string }[] = [
+		{ id: 'open', label: 'Open' },
+		{ id: 'rename', label: 'Rename' },
+		{ id: 'duplicate', label: 'Duplicate' },
+		{ id: 'copy', label: 'Copy path' },
+		{ id: 'reveal', label: 'Show in Finder' },
+		{ id: 'info', label: 'Info' },
+		{ id: 'trash', label: 'Move to Trash' },
+	];
+	let selectedAction = $state(0);
+	let renameValue = $state('');
+	let renameInput: HTMLInputElement | undefined = $state();
+
+	let toast = $state('');
+	let toastTimer: ReturnType<typeof setTimeout> | null = null;
+
+	function showToast(text: string) {
+		toast = text;
+		if (toastTimer) clearTimeout(toastTimer);
+		toastTimer = setTimeout(() => (toast = ''), 1400);
+	}
 
 	let visible = $derived.by(() => {
 		const q = query.trim().toLowerCase();
@@ -166,6 +190,75 @@
 		popup = 'none';
 	}
 
+	function openActions(index = selected) {
+		if (!visible[index]) return;
+		selected = index;
+		selectedAction = 0;
+		popupError = '';
+		popup = 'actions';
+	}
+
+	async function runAction(id: ActionId) {
+		const entry = current;
+		if (!entry) return;
+		popupError = '';
+		try {
+			switch (id) {
+				case 'open':
+					closePopup();
+					await openEntry(entry);
+					break;
+				case 'rename': {
+					renameValue = entry.name;
+					popup = 'rename';
+					await tick();
+					// select the name without its extension, like Finder
+					const dot = entry.isDir ? -1 : entry.name.lastIndexOf('.');
+					renameInput?.focus();
+					renameInput?.setSelectionRange(0, dot > 0 ? dot : entry.name.length);
+					break;
+				}
+				case 'duplicate': {
+					const copy = await files.duplicate(entry.path);
+					closePopup();
+					await reload(nameOf(copy));
+					await scrollSelectedIntoView();
+					break;
+				}
+				case 'copy':
+					await navigator.clipboard.writeText(entry.path);
+					closePopup();
+					showToast('COPIED');
+					break;
+				case 'reveal':
+					closePopup();
+					await files.reveal(entry.path);
+					break;
+				case 'info':
+					await openInfo();
+					break;
+				case 'trash':
+					openDelete();
+					break;
+			}
+		} catch (e) {
+			popupError = String(e);
+		}
+	}
+
+	async function renameItem() {
+		if (!current) return;
+		try {
+			const path = await files.rename(current.path, renameValue);
+			popup = 'none';
+			query = '';
+			await reload(nameOf(path));
+			await scrollSelectedIntoView();
+		} catch (e) {
+			popupError = String(e);
+		}
+	}
+
 	// ── keyboard ──
 
 	function isTyping(e: KeyboardEvent) {
@@ -179,10 +272,16 @@
 			if (e.key === 'Escape') {
 				e.preventDefault();
 				closePopup();
+			} else if (popup === 'actions' && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+				e.preventDefault();
+				const n = actions.length;
+				selectedAction = (selectedAction + (e.key === 'ArrowDown' ? 1 : -1) + n) % n;
 			} else if (e.key === 'Enter') {
 				e.preventDefault();
 				if (popup === 'delete') moveToTrash();
 				else if (popup === 'new') createFolder();
+				else if (popup === 'rename') renameItem();
+				else if (popup === 'actions') runAction(actions[selectedAction].id);
 				else closePopup();
 			}
 			return;
@@ -230,6 +329,8 @@
 			openNewFolder();
 		} else if (!mod && e.code === 'KeyI') {
 			openInfo();
+		} else if (!mod && e.code === 'KeyE') {
+			openActions();
 		} else if (!mod && e.code === 'KeyC') {
 			view = 'colm';
 		} else if (!mod && e.code === 'KeyL') {
@@ -253,17 +354,24 @@
 		['C / L', 'Columns / List'],
 		['N', 'New folder'],
 		['I', 'Info'],
+		['E / right click', 'Actions'],
 		['Backspace', 'Move to Trash'],
 	];
 </script>
 
-<svelte:window onkeydown={handleKeydown} />
+<svelte:window
+	onkeydown={handleKeydown}
+	oncontextmenu={e => {
+		// the webview's own menu (Reload / Inspect) is not useful here; text fields keep theirs
+		if ((e.target as HTMLElement)?.tagName !== 'INPUT') e.preventDefault();
+	}}
+/>
 
 <WindowControls />
 
 <!-- view switch -->
-<button class="side switch-colm {view === 'colm' ? 'boxed on' : 'plain'}" onclick={() => (view = 'colm')} title="Columns (C)">COLM</button>
-<button class="side switch-list {view === 'list' ? 'boxed on' : 'plain'}" onclick={() => (view = 'list')} title="List (L)">LIST</button>
+<button class="side switch switch-colm" class:ink-mark-v={view === 'colm'} onclick={() => (view = 'colm')} title="Columns (C)">COLM</button>
+<button class="side switch switch-list" class:ink-mark-v={view === 'list'} onclick={() => (view = 'list')} title="List (L)">LIST</button>
 
 <button class="side boxed nav-back" onclick={back} disabled={!canGoBack} title="Back (←)">BACK</button>
 <button class="side boxed nav-new" onclick={openNewFolder} title="New folder (N)">NEW</button>
@@ -282,6 +390,7 @@
 					class:active={i === selected}
 					onclick={() => (selected = i)}
 					ondblclick={() => openEntry(entry)}
+					oncontextmenu={() => openActions(i)}
 				>
 					<span class="name" class:ink-mark={i === selected}>{entry.name}</span>
 				</button>
@@ -318,6 +427,7 @@
 					class:active={i === selected}
 					onclick={() => (selected = i)}
 					ondblclick={() => openEntry(entry)}
+					oncontextmenu={() => openActions(i)}
 				>
 					<span class="cell-name"><span class="name" class:ink-mark={i === selected}>{entry.name}</span></span>
 					<span class="cell">{formatDate(entry.modified)}</span>
@@ -360,6 +470,34 @@
 			<button class="pop-btn" onclick={closePopup}>CANCEL</button>
 		</div>
 	</Popup>
+{:else if popup === 'actions' && current}
+	<Popup onclose={closePopup}>
+		<p class="pop-text actions-name">{current.name}</p>
+		<div class="pop-divider"></div>
+		<div class="actions">
+			{#each actions as action, i (action.id)}
+				<button
+					class="action"
+					onclick={() => runAction(action.id)}
+					onmouseenter={() => (selectedAction = i)}
+				>
+					<span class:ink-mark={i === selectedAction}>{action.label}</span>
+				</button>
+			{/each}
+		</div>
+		{#if popupError}<p class="pop-error">{popupError}</p>{/if}
+	</Popup>
+{:else if popup === 'rename' && current}
+	<Popup onclose={closePopup}>
+		<p class="pop-heading">RENAME</p>
+		<div class="pop-divider"></div>
+		<input bind:this={renameInput} bind:value={renameValue} class="name-input" type="text" maxlength="255" />
+		{#if popupError}<p class="pop-error">{popupError}</p>{/if}
+		<div class="pop-actions">
+			<button class="pop-btn" onclick={renameItem}>RENAME</button>
+			<button class="pop-btn" onclick={closePopup}>CANCEL</button>
+		</div>
+	</Popup>
 {:else if popup === 'info'}
 	<Popup onclose={closePopup}>
 		<p class="pop-heading">RE:FILE</p>
@@ -387,6 +525,10 @@
 		<div class="pop-divider"></div>
 		<p class="pop-footer">local · private · offline</p>
 	</Popup>
+{/if}
+
+{#if toast}
+	<div class="toast"><span>{toast}</span></div>
 {/if}
 
 <style>
@@ -424,6 +566,62 @@
 	.side.plain { width: 42px; }
 
 	.side:disabled { opacity: 0.3; pointer-events: none; }
+
+	/* ── actions menu ── */
+	.actions-name {
+		font-size: 22px;
+	}
+
+	.actions {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 16px;
+		/* room for the ink stroke on the selected action */
+		padding: 0.3em 0.5em;
+	}
+
+	.action {
+		background: transparent;
+		border: none;
+		padding: 0;
+		font-family: 'Kurale', serif;
+		font-size: 19px;
+		line-height: 1.2;
+		color: var(--text);
+		text-align: left;
+		cursor: url('/ink/hand.svg'), pointer;
+	}
+
+	/* ── toast (like ReNote's SAVED) ── */
+	.toast {
+		position: fixed;
+		top: 0;
+		left: 50%;
+		transform: translateX(-50%);
+		width: 42px;
+		padding: 1.5rem 0 calc(1.5rem - 0.6em);
+		border: 2px solid var(--line);
+		border-top: none;
+		background: var(--bg) url('/noise.svg') repeat;
+		display: flex;
+		justify-content: center;
+		z-index: 80;
+		animation: toastIn 300ms cubic-bezier(0.22, 1, 0.36, 1) both;
+	}
+
+	.toast span {
+		writing-mode: vertical-rl;
+		text-orientation: upright;
+		letter-spacing: 0.6em;
+		font-size: 16px;
+		line-height: 32px;
+	}
+
+	@keyframes toastIn {
+		from { transform: translateX(-50%) translateY(-100%); }
+		to { transform: translateX(-50%) translateY(0); }
+	}
 
 	/* ── lists ── */
 	.scroll {

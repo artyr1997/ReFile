@@ -33,6 +33,26 @@ fn create_folder(parent: String, name: String) -> CmdResult<String> {
 }
 
 #[tauri::command]
+fn rename_item(path: String, name: String) -> CmdResult<String> {
+    fs::rename(&PathBuf::from(path), &name).map(|p| p.to_string_lossy().into_owned())
+}
+
+#[tauri::command]
+fn duplicate_item(path: String) -> CmdResult<String> {
+    fs::duplicate(&PathBuf::from(path)).map(|p| p.to_string_lossy().into_owned())
+}
+
+/// Opens Finder with the item selected.
+#[tauri::command]
+fn reveal_in_finder(path: String) -> CmdResult<()> {
+    std::process::Command::new("open")
+        .args(["-R", &path])
+        .status()
+        .map_err(|e| e.to_string())
+        .and_then(|s| if s.success() { Ok(()) } else { Err("Finder couldn't show this item.".into()) })
+}
+
+#[tauri::command]
 fn move_to_trash(path: String) -> CmdResult<()> {
     fs::move_to_trash(&PathBuf::from(path))
 }
@@ -82,6 +102,9 @@ pub fn run() {
             list_dir,
             item_info,
             create_folder,
+            rename_item,
+            duplicate_item,
+            reveal_in_finder,
             move_to_trash,
             open_path,
         ])
