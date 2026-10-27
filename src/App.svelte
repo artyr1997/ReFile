@@ -555,7 +555,7 @@
 
 	.title {
 		position: absolute;
-		top: calc(var(--edge-y) - 2px);
+		top: 28px;
 		left: 50%;
 		transform: translateX(-50%);
 		max-width: 50%;
@@ -571,12 +571,12 @@
 	}
 
 	/* ── side buttons, placed as in the reference ── */
-	.switch-colm { left: var(--edge-x); top: calc(var(--edge-y) + 8px); }
-	.switch-list { right: var(--edge-x); top: calc(var(--edge-y) + 8px); }
-	.nav-back { left: var(--edge-x); top: 50%; transform: translateY(-50%); }
-	.nav-new { right: var(--edge-x); top: 50%; transform: translateY(-50%); }
-	.nav-info { left: var(--edge-x); bottom: var(--edge-y); }
-	.nav-del { right: var(--edge-x); bottom: var(--edge-y); }
+	.switch-colm { left: calc(6.25% - 28px); top: calc(6.25% + 8px); }
+	.switch-list { right: calc(6.25% - 28px); top: calc(6.25% + 8px); }
+	.nav-back { left: calc(6.25% - 28px); top: 50%; transform: translateY(-50%); }
+	.nav-new { right: calc(6.25% - 28px); top: 50%; transform: translateY(-50%); }
+	.nav-info { left: calc(6.25% - 28px); bottom: 6.25%; }
+	.nav-del { right: calc(6.25% - 28px); bottom: 6.25%; }
 
 	/* plain buttons sit centred where a box would be */
 	.side.plain { width: 42px; }
@@ -642,8 +642,8 @@
 	/* ── lists ── */
 	.scroll {
 		position: absolute;
-		top: calc(var(--edge-y) + 132px);
-		bottom: calc(var(--edge-y) + 72px);
+		top: calc(6.25% + 132px);
+		bottom: calc(6.25% + 72px);
 		overflow-y: auto;
 		overflow-x: hidden;
 		display: flex;
@@ -654,7 +654,7 @@
 	}
 
 	.column.left { left: calc(21.3% - 0.6em); width: 34%; }
-	.column.right { left: calc(69.4% - 0.6em); width: calc(30.6% - var(--edge-x) - 88px); }
+	.column.right { left: calc(69.4% - 0.6em); width: calc(30.6% - 6.25% - 60px); }
 
 	.row {
 		display: flex;
@@ -693,7 +693,7 @@
 	.table {
 		left: 50%;
 		transform: translateX(-50%);
-		width: min(680px, calc(100% - 2 * (var(--edge-x) + 88px)));
+		width: min(680px, calc(100% - 2 * (6.25% + 60px)));
 	}
 
 	.table-row {
@@ -750,7 +750,7 @@
 	.search {
 		position: absolute;
 		left: 50%;
-		bottom: calc(var(--edge-y) - 6px);
+		bottom: calc(6.25% - 6px);
 		transform: translateX(-50%);
 		width: 360px;
 		background: transparent;
