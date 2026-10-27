@@ -446,8 +446,8 @@
 					oncontextmenu={() => openActions(i)}
 				>
 					<span class="cell-name"><span class="name" class:ink-mark={i === selected}>{entry.name}</span></span>
-					<span class="cell">{formatDate(entry.modified)}</span>
 					<span class="cell">{formatSize(entry.size)}</span>
+					<span class="cell">{formatDate(entry.modified)}</span>
 				</button>
 			{:else}
 				<p class="empty">{listError || (query ? 'Nothing found.' : 'Empty folder.')}</p>
@@ -642,8 +642,8 @@
 	/* ── lists ── */
 	.scroll {
 		position: absolute;
-		top: calc(6.25% + 132px);
-		bottom: calc(6.25% + 72px);
+		top: calc(6.25% + 88px);
+		bottom: calc(6.25% + 44px);
 		overflow-y: auto;
 		overflow-x: hidden;
 		display: flex;
@@ -698,7 +698,7 @@
 
 	.table-row {
 		display: grid;
-		grid-template-columns: minmax(0, 1fr) 220px 110px;
+		grid-template-columns: minmax(0, 1fr) 110px 220px;
 		column-gap: 24px;
 		width: 100%;
 	}
