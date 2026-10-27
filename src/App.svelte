@@ -642,7 +642,7 @@
 	/* ── lists ── */
 	.scroll {
 		position: absolute;
-		top: calc(6.25% + 88px);
+		top: calc(6.25% + 40px);
 		bottom: calc(6.25% + 44px);
 		overflow-y: auto;
 		overflow-x: hidden;
