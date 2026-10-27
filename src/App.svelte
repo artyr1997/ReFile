@@ -653,8 +653,8 @@
 		padding: 0.4em 0.6em;
 	}
 
-	.column.left { left: calc(21.3% - 0.6em); width: 34%; }
-	.column.right { left: calc(69.4% - 0.6em); width: calc(30.6% - 6.25% - 60px); }
+	.column.left { left: calc(21.3% - 0.6em); width: 26%; }
+	.column.right { left: calc(50% - 0.6em); width: calc(50% - 6.25% - 60px); }
 
 	.row {
 		display: flex;
