@@ -395,6 +395,11 @@
 <button class="side plain nav-info" onclick={openInfo} title="Info (I)">INFO</button>
 <button class="side plain nav-del" onclick={openDelete} disabled={!current} title="Move to Trash (Backspace)">DEL</button>
 
+<!-- a small window: one list, the rest from the keyboard -->
+<button class="corner top-right" onclick={back} disabled={!canGoBack} title="Back (←)">BACK</button>
+<button class="corner bottom-left" onclick={openInfo} title="Info (I)">INFO</button>
+<button class="corner bottom-right" onclick={openNewFolder} title="New folder (N)">NEW</button>
+
 <main class="browser fade-in">
 	<h1 class="title" title={cwd}>{title}</h1>
 
@@ -766,6 +771,33 @@
 	.search::placeholder {
 		color: var(--muted);
 		opacity: 0.55;
+	}
+
+	/* ── a small window: one list across it, names only ── */
+	@media (max-width: 759px), (max-height: 559px) {
+		.title {
+			top: 12px;
+			max-width: calc(100% - 200px);
+			font-size: 18px;
+		}
+
+		.scroll {
+			top: 52px;
+			bottom: 52px;
+		}
+
+		.column.left { left: 40px; width: calc(100% - 80px); }
+		.column.right { display: none; }
+
+		.table { width: calc(100% - 80px); }
+		.table-row { grid-template-columns: minmax(0, 1fr); }
+		.cell { display: none; }
+
+		.search {
+			bottom: 8px;
+			width: calc(100% - 200px);
+			font-size: 18px;
+		}
 	}
 
 	/* ── popups ── */
