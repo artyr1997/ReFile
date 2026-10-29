@@ -1078,7 +1078,7 @@
 	.pop-error {
 		font-family: 'Kurale', serif;
 		font-size: 15px;
-		color: #b04a45;
+		color: var(--error);
 		text-align: center;
 	}
 
