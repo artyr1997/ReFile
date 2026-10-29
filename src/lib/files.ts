@@ -36,6 +36,7 @@ export const files = {
 	open: (path: string) => invoke<void>('open_path', { path }),
 	readFile: (path: string) => invoke<ArrayBuffer>('read_file', { path }),
 	readText: (path: string) => invoke<{ text: string; truncated: boolean }>('read_text', { path }),
+	writeText: (path: string, text: string) => invoke<void>('write_text', { path, text }),
 	openInReSound: (path: string) => invoke<void>('open_in_resound', { path }),
 };
 

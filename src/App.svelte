@@ -49,8 +49,12 @@
 	// the viewer: a picture or a text file over the list
 	type Shown =
 		| { entry: Entry; kind: 'image'; url: string }
-		| { entry: Entry; kind: 'text'; text: string; truncated: boolean };
+		// `text` is edited in place, `saved` is what the file holds
+		| { entry: Entry; kind: 'text'; text: string; saved: string; truncated: boolean };
 	let shown: Shown | null = $state(null);
+	let textArea: HTMLTextAreaElement | undefined = $state();
+	let saveTimer: ReturnType<typeof setTimeout> | null = null;
+	let edited = false;
 
 	let toast = $state('');
 	let toastTimer: ReturnType<typeof setTimeout> | null = null;
@@ -128,7 +132,8 @@
 				const bytes = await files.readFile(entry.path);
 				next = { entry, kind: 'image', url: URL.createObjectURL(new Blob([bytes], { type: imageType(entry.name) })) };
 			} else {
-				next = { entry, kind: 'text', ...(await files.readText(entry.path)) };
+				const { text, truncated } = await files.readText(entry.path);
+				next = { entry, kind: 'text', text, saved: text, truncated };
 			}
 			closeViewer();
 			shown = next;
@@ -139,9 +144,36 @@
 	}
 
 	function closeViewer() {
+		save();
 		if (shown?.kind === 'image') URL.revokeObjectURL(shown.url);
 		shown = null;
+		// sizes and dates changed with the edits
+		if (edited) reload();
+		edited = false;
 	}
+
+	/** Writes the text's edits, if any. Only whole files: a file shown cut at a megabyte stays as it is. */
+	async function save() {
+		if (saveTimer) clearTimeout(saveTimer);
+		saveTimer = null;
+		const doc = shown;
+		if (doc?.kind !== 'text' || doc.truncated || doc.text === doc.saved) return;
+		const text = doc.text;
+		try {
+			await files.writeText(doc.entry.path, text);
+			doc.saved = text;
+			edited = true;
+		} catch {
+			showToast('NOT SAVED');
+		}
+	}
+
+	// typing saves itself a moment after it stops
+	$effect(() => {
+		if (shown?.kind !== 'text' || shown.text === shown.saved) return;
+		if (saveTimer) clearTimeout(saveTimer);
+		saveTimer = setTimeout(save, 700);
+	});
 
 	/** ← / → in the viewer: the previous / next picture or text of the folder, the selection following. */
 	async function stepViewer(delta: number) {
@@ -347,6 +379,17 @@
 		const mod = e.metaKey || e.ctrlKey;
 
 		if (shown) {
+			// in the text: it's typing, but for Esc (close) and ⌘S
+			if (e.target === textArea) {
+				if (e.key === 'Escape') {
+					e.preventDefault();
+					closeViewer();
+				} else if (mod && e.key === 's') {
+					e.preventDefault();
+					save();
+				}
+				return;
+			}
 			if (e.key === 'Escape' || e.key === ' ') {
 				e.preventDefault();
 				closeViewer();
@@ -425,6 +468,7 @@
 		['↑ / ↓', 'Select'],
 		['→ / Enter', 'Open'],
 		['Space', 'Look at a picture or text'],
+		['⌘ S', 'Save the text (it saves itself too)'],
 		['←', 'Back'],
 		['/', 'Search'],
 		['C / L', 'Columns / List'],
@@ -629,10 +673,15 @@
 				/>
 			</div>
 		{:else}
-			<pre class="view-text scroll" use:scrollFade>{shown.text}</pre>
+			{#if shown.truncated}
+				<pre class="view-text scroll" use:scrollFade>{shown.text}</pre>
+			{:else}
+				<textarea class="view-text scroll" bind:this={textArea} bind:value={shown.text} spellcheck="false" use:scrollFade
+				></textarea>
+			{/if}
 		{/if}
 		<p class="view-foot">
-			{formatSize(shown.entry.size)}{#if shown.kind === 'text' && shown.truncated} · the first megabyte{/if}
+			{formatSize(shown.entry.size)}{#if shown.kind === 'text' && shown.truncated} · the first megabyte, not editable{/if}
 			{#if viewable.length > 1}
 				· {viewable.findIndex(e => e.path === shown!.entry.path) + 1} / {viewable.length}{/if}
 		</p>
@@ -938,6 +987,18 @@
 		color: var(--text);
 	}
 
+	/* the editor: a page of text, nothing around it (a textarea doesn't stretch between left and right) */
+	textarea.view-text {
+		width: calc(100% - 2 * (6.25% + 60px));
+		height: calc(100% - 2 * 6.25% - 84px);
+		padding: 0;
+		border: none;
+		outline: none;
+		resize: none;
+		background: transparent;
+		caret-color: var(--text);
+	}
+
 	.view-foot {
 		position: absolute;
 		left: 50%;
@@ -969,6 +1030,11 @@
 		.view-text {
 			left: 40px;
 			right: 40px;
+		}
+
+		textarea.view-text {
+			width: calc(100% - 80px);
+			height: calc(100% - 104px);
 		}
 
 		.view-foot {
