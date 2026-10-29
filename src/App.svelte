@@ -616,17 +616,18 @@
 	<div class="viewer">
 		<h1 class="title" title={shown.entry.path}>{shown.entry.name}</h1>
 		{#if shown.kind === 'image'}
-			<img
-				class="view-image"
-				src={shown.url}
-				alt={shown.entry.name}
-				onerror={() => {
-					// a picture WebKit can't draw: the Mac's app then
-					const path = shown!.entry.path;
-					closeViewer();
-					files.open(path);
-				}}
-			/>
+			<div class="view-image">
+				<img
+					src={shown.url}
+					alt={shown.entry.name}
+					onerror={() => {
+						// a picture WebKit can't draw: the Mac's app then
+						const path = shown!.entry.path;
+						closeViewer();
+						files.open(path);
+					}}
+				/>
+			</div>
 		{:else}
 			<pre class="view-text scroll" use:scrollFade>{shown.text}</pre>
 		{/if}
@@ -912,7 +913,16 @@
 		left: calc(6.25% + 60px);
 		width: calc(100% - 2 * (6.25% + 60px));
 		height: calc(100% - 2 * 6.25% - 84px);
-		object-fit: contain;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	/* at its own shape, so the rounded corners are the picture's */
+	.view-image img {
+		max-width: 100%;
+		max-height: 100%;
+		border-radius: 22px;
 	}
 
 	.view-text {
