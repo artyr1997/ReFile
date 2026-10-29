@@ -396,6 +396,9 @@
 <button class="side plain nav-del" onclick={openDelete} disabled={!current} title="Move to Trash (Backspace)">DEL</button>
 
 <!-- a small window: one list, the rest from the keyboard -->
+<button class="corner top-left" onclick={() => (view = view === 'colm' ? 'list' : 'colm')} title={view === 'colm' ? 'List (L)' : 'Columns (C)'}>
+	{view === 'colm' ? 'LIST' : 'COLM'}
+</button>
 <button class="corner top-right" onclick={back} disabled={!canGoBack} title="Back (←)">BACK</button>
 <button class="corner bottom-left" onclick={openInfo} title="Info (I)">INFO</button>
 <button class="corner bottom-right" onclick={openNewFolder} title="New folder (N)">NEW</button>
@@ -773,7 +776,7 @@
 		opacity: 0.55;
 	}
 
-	/* ── a small window: one list across it, names only ── */
+	/* ── a small window: the two columns share it; the list keeps size and date while they fit ── */
 	@media (max-width: 759px), (max-height: 559px) {
 		.title {
 			top: 12px;
@@ -786,18 +789,23 @@
 			bottom: 52px;
 		}
 
-		.column.left { left: 40px; width: calc(100% - 80px); }
-		.column.right { display: none; }
+		.column.left { left: 40px; width: calc(50% - 50px); }
+		.column.right { left: calc(50% + 10px); width: calc(50% - 50px); }
 
 		.table { width: calc(100% - 80px); }
-		.table-row { grid-template-columns: minmax(0, 1fr); }
-		.cell { display: none; }
+		.table-row { grid-template-columns: minmax(0, 1fr) 80px 150px; column-gap: 16px; }
+		.cell { font-size: 14px; }
 
 		.search {
 			bottom: 8px;
 			width: calc(100% - 200px);
 			font-size: 18px;
 		}
+	}
+
+	@media (max-width: 559px) {
+		.table-row { grid-template-columns: minmax(0, 1fr) 80px; }
+		.cell:last-child { display: none; }
 	}
 
 	/* ── popups ── */
