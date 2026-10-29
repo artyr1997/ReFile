@@ -753,7 +753,7 @@
 		line-height: 1.2;
 		color: var(--text);
 		text-align: left;
-		cursor: url('/ink/hand.svg'), pointer;
+		cursor: pointer;
 	}
 
 	/* ── toast (like ReNote's SAVED) ── */
@@ -815,7 +815,7 @@
 		font-size: 16px;
 		line-height: 1.2;
 		color: var(--text);
-		cursor: url('/ink/hand.svg'), pointer;
+		cursor: pointer;
 		/* scrolled-to rows stop clear of the faded edges */
 		scroll-margin: 56px 0;
 		flex-shrink: 0;
