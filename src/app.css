@@ -220,8 +220,6 @@ input:focus::placeholder {
 		pointer-events: none;
 	}
 
-	/* next to the window buttons */
-	.corner.top-left { top: 12px; left: 40px; }
 	.corner.top-right { top: 12px; right: 12px; }
 	.corner.bottom-left { bottom: 12px; left: 12px; }
 	.corner.bottom-right { bottom: 12px; right: 12px; }

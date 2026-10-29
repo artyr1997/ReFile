@@ -63,6 +63,59 @@ fn move_to_trash(path: String) -> CmdResult<()> {
 }
 
 /// Opens a file (or app) with its default macOS application.
+// ── the viewer: pictures and text open inside ReFile, music in ReSound ──
+
+/// A picture's bytes, handed to the UI as they are (an ArrayBuffer there, no base64).
+#[tauri::command]
+fn read_file(path: String) -> CmdResult<tauri::ipc::Response> {
+    const MAX: u64 = 200_000_000;
+    let size = std::fs::metadata(&path).map_err(|e| e.to_string())?.len();
+    if size > MAX {
+        return Err("Too big to show".into());
+    }
+    std::fs::read(&path).map(tauri::ipc::Response::new).map_err(|e| e.to_string())
+}
+
+#[derive(serde::Serialize)]
+struct Text {
+    text: String,
+    /// only the first megabyte is shown
+    truncated: bool,
+}
+
+/// A text file's first megabyte; an error when it isn't text (zero bytes, or not UTF-8).
+#[tauri::command]
+fn read_text(path: String) -> CmdResult<Text> {
+    use std::io::Read;
+    const MAX: usize = 1_000_000;
+    let mut bytes = Vec::new();
+    std::fs::File::open(&path)
+        .and_then(|f| f.take(MAX as u64 + 1).read_to_end(&mut bytes))
+        .map_err(|e| e.to_string())?;
+    let truncated = bytes.len() > MAX;
+    bytes.truncate(MAX);
+    if bytes[..bytes.len().min(8192)].contains(&0) {
+        return Err("Not text".into());
+    }
+    let text = match std::str::from_utf8(&bytes) {
+        Ok(text) => text.to_owned(),
+        // cut in the middle of a letter at the megabyte's end: fine; anywhere else: not UTF-8 text
+        Err(e) if truncated && e.valid_up_to() + 4 >= bytes.len() => String::from_utf8_lossy(&bytes[..e.valid_up_to()]).into_owned(),
+        Err(_) => return Err("Not text".into()),
+    };
+    Ok(Text { text, truncated })
+}
+
+/// Music goes to ReSound (which plays its folder from it); without ReSound, to the Mac's default.
+#[tauri::command]
+fn open_in_resound(app: tauri::AppHandle, path: String) -> CmdResult<()> {
+    let sent = std::process::Command::new("open")
+        .args(["-b", "com.artursavytskyi.resound", &path])
+        .status()
+        .is_ok_and(|s| s.success());
+    if sent { Ok(()) } else { open_path(app, path) }
+}
+
 #[tauri::command]
 fn open_path(app: tauri::AppHandle, path: String) -> CmdResult<()> {
     app.opener().open_path(path, None::<&str>).map_err(|e| e.to_string())
@@ -113,6 +166,9 @@ pub fn run() {
             reveal_in_finder,
             move_to_trash,
             open_path,
+            read_file,
+            read_text,
+            open_in_resound,
         ])
         .run(tauri::generate_context!())
         .expect("error while running ReFile");

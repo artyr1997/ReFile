@@ -34,6 +34,9 @@ export const files = {
 	reveal: (path: string) => invoke<void>('reveal_in_finder', { path }),
 	moveToTrash: (path: string) => invoke<void>('move_to_trash', { path }),
 	open: (path: string) => invoke<void>('open_path', { path }),
+	readFile: (path: string) => invoke<ArrayBuffer>('read_file', { path }),
+	readText: (path: string) => invoke<{ text: string; truncated: boolean }>('read_text', { path }),
+	openInReSound: (path: string) => invoke<void>('open_in_resound', { path }),
 };
 
 export function parentOf(path: string): string | null {
@@ -68,4 +71,38 @@ export function formatSize(bytes: number | null): string {
 		unit++;
 	}
 	return `${unit === 0 ? Math.round(value) : value.toFixed(1)} ${units[unit]}`;
+}
+
+// ── what opens where: pictures and text in ReFile's viewer, music in ReSound ──
+
+const IMAGES: Record<string, string> = {
+	png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp',
+	heic: 'image/heic', heif: 'image/heif', avif: 'image/avif', bmp: 'image/bmp', tif: 'image/tiff',
+	tiff: 'image/tiff', svg: 'image/svg+xml', ico: 'image/x-icon',
+};
+// the same as ReSound plays
+const AUDIO = ['mp3', 'm4a', 'aac', 'alac', 'flac', 'wav', 'aif', 'aiff', 'ogg', 'opus'];
+const TEXT = [
+	'txt', 'md', 'markdown', 'log', 'csv', 'tsv', 'json', 'jsonl', 'yaml', 'yml', 'toml', 'ini', 'conf', 'cfg', 'env',
+	'xml', 'html', 'htm', 'css', 'scss', 'js', 'mjs', 'cjs', 'ts', 'tsx', 'jsx', 'svelte', 'vue', 'py', 'rb', 'rs',
+	'go', 'swift', 'java', 'kt', 'c', 'h', 'cpp', 'hpp', 'cs', 'php', 'sh', 'zsh', 'bash', 'fish', 'sql', 'lua',
+	'gitignore', 'dockerfile', 'makefile', 'srt', 'vtt', 'tex', 'plist', 'jmx', 'itermcolors',
+];
+
+function extension(name: string): string {
+	const dot = name.lastIndexOf('.');
+	return dot > 0 ? name.slice(dot + 1).toLowerCase() : dot === 0 ? name.slice(1).toLowerCase() : '';
+}
+
+/** A file with no extension (README, Makefile) is tried as text; ReFile falls back to the Mac if it isn't. */
+export function kindOf(name: string): 'image' | 'text' | 'audio' | 'other' {
+	const ext = extension(name);
+	if (ext in IMAGES) return 'image';
+	if (AUDIO.includes(ext)) return 'audio';
+	if (TEXT.includes(ext) || ext === '') return 'text';
+	return 'other';
+}
+
+export function imageType(name: string): string {
+	return IMAGES[extension(name)] ?? '';
 }

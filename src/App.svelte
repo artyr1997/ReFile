@@ -3,7 +3,7 @@
 	import WindowControls from './lib/WindowControls.svelte';
 	import Popup from './lib/Popup.svelte';
 	import { scrollFade } from './lib/scrollFade';
-	import { files, parentOf, nameOf, formatDate, formatSize } from './lib/files';
+	import { files, parentOf, nameOf, formatDate, formatSize, kindOf, imageType } from './lib/files';
 	import type { Entry, Info } from './lib/files';
 
 	type View = 'colm' | 'list';
@@ -46,6 +46,12 @@
 	let renameValue = $state('');
 	let renameInput: HTMLInputElement | undefined = $state();
 
+	// the viewer: a picture or a text file over the list
+	type Shown =
+		| { entry: Entry; kind: 'image'; url: string }
+		| { entry: Entry; kind: 'text'; text: string; truncated: boolean };
+	let shown: Shown | null = $state(null);
+
 	let toast = $state('');
 	let toastTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -60,6 +66,8 @@
 		return q ? entries.filter(e => e.name.toLowerCase().includes(q)) : entries;
 	});
 	let current: Entry | undefined = $derived(visible[selected]);
+	// what the viewer steps through
+	let viewable = $derived(visible.filter(e => !e.isDir && (kindOf(e.name) === 'image' || kindOf(e.name) === 'text')));
 	let title = $derived(cwd ? nameOf(cwd) : '');
 	// the home folder is the top of ReFile: BACK disappears there
 	let home = $state('');
@@ -102,10 +110,48 @@
 		if (parent) navigate(parent, nameOf(cwd));
 	}
 
+	/** Folders open in place, pictures and text in the viewer, music in ReSound, the rest with the Mac's app. */
 	async function openEntry(entry: Entry | undefined = current) {
 		if (!entry) return;
-		if (entry.isDir) await navigate(entry.path);
-		else await files.open(entry.path);
+		if (entry.isDir) return navigate(entry.path);
+		const kind = kindOf(entry.name);
+		if (kind === 'audio') return files.openInReSound(entry.path);
+		if ((kind === 'image' || kind === 'text') && (await show(entry))) return;
+		await files.open(entry.path);
+	}
+
+	/** Puts `entry` in the viewer; false when it can't be shown (not text after all, too big…). */
+	async function show(entry: Entry): Promise<boolean> {
+		try {
+			let next: Shown;
+			if (kindOf(entry.name) === 'image') {
+				const bytes = await files.readFile(entry.path);
+				next = { entry, kind: 'image', url: URL.createObjectURL(new Blob([bytes], { type: imageType(entry.name) })) };
+			} else {
+				next = { entry, kind: 'text', ...(await files.readText(entry.path)) };
+			}
+			closeViewer();
+			shown = next;
+			return true;
+		} catch {
+			return false;
+		}
+	}
+
+	function closeViewer() {
+		if (shown?.kind === 'image') URL.revokeObjectURL(shown.url);
+		shown = null;
+	}
+
+	/** ← / → in the viewer: the previous / next picture or text of the folder, the selection following. */
+	async function stepViewer(delta: number) {
+		if (!shown || viewable.length < 2) return;
+		const at = viewable.findIndex(e => e.path === shown!.entry.path);
+		const next = viewable[(at + delta + viewable.length) % viewable.length];
+		if (await show(next)) {
+			selected = visible.indexOf(next);
+			await scrollSelectedIntoView();
+		}
 	}
 
 	/** In COLM view, clicking an item in the right column steps into the folder and selects it. */
@@ -300,6 +346,17 @@
 
 		const mod = e.metaKey || e.ctrlKey;
 
+		if (shown) {
+			if (e.key === 'Escape' || e.key === ' ') {
+				e.preventDefault();
+				closeViewer();
+			} else if (e.key.startsWith('Arrow')) {
+				e.preventDefault();
+				stepViewer(e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : -1);
+			}
+			return;
+		}
+
 		// in the search field: arrows move through results, Enter opens, Esc clears
 		if (e.target === searchInput) {
 			if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
@@ -325,6 +382,10 @@
 		} else if (e.key === 'Enter' || (mod && e.key === 'o')) {
 			e.preventDefault();
 			openEntry();
+		} else if (e.key === ' ' && current && !current.isDir) {
+			// a quick look: only what the viewer shows
+			e.preventDefault();
+			if (viewable.includes(current)) show(current);
 		} else if (e.key === 'ArrowLeft' || (mod && e.key === 'ArrowUp')) {
 			e.preventDefault();
 			back();
@@ -363,6 +424,7 @@
 	const shortcuts = [
 		['↑ / ↓', 'Select'],
 		['→ / Enter', 'Open'],
+		['Space', 'Look at a picture or text'],
 		['←', 'Back'],
 		['/', 'Search'],
 		['C / L', 'Columns / List'],
@@ -395,11 +457,10 @@
 <button class="side plain nav-info" onclick={openInfo} title="Info (I)">INFO</button>
 <button class="side plain nav-del" onclick={openDelete} disabled={!current} title="Move to Trash (Backspace)">DEL</button>
 
-<!-- a small window: one list, the rest from the keyboard -->
-<button class="corner top-left" onclick={() => (view = view === 'colm' ? 'list' : 'colm')} title={view === 'colm' ? 'List (L)' : 'Columns (C)'}>
+<!-- a small window: the view switch where BACK is in a big one (← still goes back) -->
+<button class="corner top-right" onclick={() => (view = view === 'colm' ? 'list' : 'colm')} title={view === 'colm' ? 'List (L)' : 'Columns (C)'}>
 	{view === 'colm' ? 'LIST' : 'COLM'}
 </button>
-<button class="corner top-right" onclick={back} disabled={!canGoBack} title="Back (←)">BACK</button>
 <button class="corner bottom-left" onclick={openInfo} title="Info (I)">INFO</button>
 <button class="corner bottom-right" onclick={openNewFolder} title="New folder (N)">NEW</button>
 
@@ -549,6 +610,34 @@
 		<div class="pop-divider"></div>
 		<p class="pop-footer">local · private · offline</p>
 	</Popup>
+{/if}
+
+{#if shown}
+	<div class="viewer">
+		<h1 class="title" title={shown.entry.path}>{shown.entry.name}</h1>
+		{#if shown.kind === 'image'}
+			<img
+				class="view-image"
+				src={shown.url}
+				alt={shown.entry.name}
+				onerror={() => {
+					// a picture WebKit can't draw: the Mac's app then
+					const path = shown!.entry.path;
+					closeViewer();
+					files.open(path);
+				}}
+			/>
+		{:else}
+			<pre class="view-text scroll" use:scrollFade>{shown.text}</pre>
+		{/if}
+		<p class="view-foot">
+			{formatSize(shown.entry.size)}{#if shown.kind === 'text' && shown.truncated} · the first megabyte{/if}
+			{#if viewable.length > 1}
+				· {viewable.findIndex(e => e.path === shown!.entry.path) + 1} / {viewable.length}{/if}
+		</p>
+		<button class="side boxed nav-back" onclick={closeViewer} title="Close (Esc)">CLOSE</button>
+		<button class="viewer-close" onclick={closeViewer} title="Close (Esc)">CLOSE</button>
+	</div>
 {/if}
 
 {#if toast}
@@ -806,6 +895,96 @@
 	@media (max-width: 559px) {
 		.table-row { grid-template-columns: minmax(0, 1fr) 80px; }
 		.cell:last-child { display: none; }
+	}
+
+	/* ── viewer: over the list, under popups and the window buttons ── */
+	.viewer {
+		position: fixed;
+		inset: 0;
+		z-index: 40;
+		background: var(--bg) url('/noise.svg') repeat;
+	}
+
+	.view-image {
+		position: absolute;
+		top: calc(6.25% + 40px);
+		bottom: calc(6.25% + 44px);
+		left: calc(6.25% + 60px);
+		width: calc(100% - 2 * (6.25% + 60px));
+		height: calc(100% - 2 * 6.25% - 84px);
+		object-fit: contain;
+	}
+
+	.view-text {
+		left: calc(6.25% + 60px);
+		right: calc(6.25% + 60px);
+		display: block;
+		margin: 0;
+		font-family: 'SF Mono', Menlo, monospace;
+		font-size: 13px;
+		line-height: 1.6;
+		white-space: pre-wrap;
+		overflow-wrap: anywhere;
+		color: var(--text);
+	}
+
+	.view-foot {
+		position: absolute;
+		left: 50%;
+		bottom: calc(6.25% - 6px);
+		transform: translateX(-50%);
+		margin: 0;
+		font-family: 'Kurale', serif;
+		font-size: 18px;
+		line-height: 32px;
+		white-space: nowrap;
+		color: var(--muted);
+		opacity: 0.7;
+	}
+
+	/* the small window's corner; the big one has the side button */
+	.viewer-close {
+		display: none;
+	}
+
+	@media (max-width: 759px), (max-height: 559px) {
+		.view-image {
+			top: 52px;
+			bottom: 52px;
+			left: 40px;
+			width: calc(100% - 80px);
+			height: calc(100% - 104px);
+		}
+
+		.view-text {
+			left: 40px;
+			right: 40px;
+		}
+
+		.view-foot {
+			bottom: 8px;
+			font-size: 14px;
+		}
+
+		.viewer-close {
+			display: block;
+			position: fixed;
+			top: 12px;
+			right: 12px;
+			background: transparent;
+			border: none;
+			padding: 0.3em 0.4em;
+			font-family: 'Noto Sans JP', sans-serif;
+			font-size: 12px;
+			letter-spacing: 0.3em;
+			color: var(--text);
+			opacity: 0.6;
+			cursor: pointer;
+		}
+
+		.viewer-close:hover {
+			opacity: 1;
+		}
 	}
 
 	/* ── popups ── */
