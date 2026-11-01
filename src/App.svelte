@@ -559,7 +559,7 @@
 					oncontextmenu={() => openActions(i)}
 				>
 					<span class="cell-name"><span class="name" class:ink-mark={i === selected}>{entry.name}</span></span>
-					<span class="cell">{formatSize(entry.size)}</span>
+					<span class="cell size">{formatSize(entry.size)}</span>
 					<span class="cell">{formatDate(entry.modified)}</span>
 				</button>
 			{:else}
@@ -934,6 +934,8 @@
 		.table { width: calc(100% - 80px); }
 		.table-row { grid-template-columns: minmax(0, 1fr) 80px 150px; column-gap: 16px; }
 		.cell { font-size: 14px; }
+		/* the size sits in the middle of its column, between the name and the date */
+		.cell.size { text-align: center; }
 
 		.search {
 			bottom: 8px;
