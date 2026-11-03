@@ -941,6 +941,13 @@
 			bottom: 8px;
 			width: calc(100% - 200px);
 			font-size: 18px;
+			transition: opacity 200ms ease;
+		}
+
+		/* only in the window in use, while nothing is typed in it */
+		:global(html.blurred) .search:placeholder-shown {
+			opacity: 0;
+			pointer-events: none;
 		}
 	}
 
