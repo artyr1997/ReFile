@@ -459,9 +459,15 @@
 	const gb = (bytes: number) => `${Math.round(bytes / 1e9)} GB`;
 	const readDisk = () => files.diskSpace().then(d => (disk = d)).catch(() => {});
 
+	// how busy the Mac is, 0…1: the processor on the left, the memory on the right
+	let load = $state<{ cpu: number; memory: number } | null>(null);
+	const readLoad = () => files.load().then(l => (load = l)).catch(() => {});
+
 	onMount(() => {
 		readDisk();
 		const diskTimer = setInterval(readDisk, 60_000);
+		readLoad();
+		const loadTimer = setInterval(readLoad, 2000);
 		files.homeDir().then(dir => {
 			home = dir;
 			navigate(dir);
@@ -475,6 +481,7 @@
 		return () => {
 			window.removeEventListener('focus', refresh);
 			clearInterval(diskTimer);
+			clearInterval(loadTimer);
 		};
 	});
 
@@ -507,10 +514,15 @@
 <button class="side switch switch-colm" class:ink-mark-v={view === 'colm'} onclick={() => (view = 'colm')} title="Columns (C)">COLM</button>
 <button class="side switch switch-list" class:ink-mark-v={view === 'list'} onclick={() => (view = 'list')} title="List (L)">LIST</button>
 
-{#if canGoBack}
-	<button class="side boxed nav-back" onclick={back} title="Back (←)">BACK</button>
+<!-- how busy the Mac is: the processor on the left, the memory on the right (← goes back, N makes a folder) -->
+{#if load}
+	<div class="gauge gauge-cpu" title="Processor {Math.round(load.cpu * 100)}%">
+		<div class="gauge-used" style="height: {Math.min(load.cpu, 1) * 100}%"></div>
+	</div>
+	<div class="gauge gauge-memory" title="Memory {Math.round(load.memory * 100)}%">
+		<div class="gauge-used" style="height: {Math.min(load.memory, 1) * 100}%"></div>
+	</div>
 {/if}
-<button class="side boxed nav-new" onclick={openNewFolder} title="New folder (N)">NEW</button>
 
 <button class="side plain nav-info" onclick={openInfo} title="Info (I)">INFO</button>
 <button class="side plain nav-del" onclick={openDelete} disabled={!current} title="Move to Trash (Backspace)">DEL</button>
@@ -740,7 +752,31 @@
 	.switch-colm { left: calc(6.25% - 28px); top: calc(6.25% + 8px); }
 	.switch-list { right: calc(6.25% - 28px); top: calc(6.25% + 8px); }
 	.nav-back { left: calc(6.25% - 28px); top: 50%; transform: translateY(-50%); }
-	.nav-new { right: calc(6.25% - 28px); top: 50%; transform: translateY(-50%); }
+
+	/* the load lines, where BACK and NEW were: faint, filled from below as far as used (as on ReDesk) */
+	.gauge {
+		position: fixed;
+		top: 50%;
+		transform: translateY(-50%);
+		width: 3px;
+		height: 160px;
+		border-radius: 1.5px;
+		background: color-mix(in srgb, var(--text) 25%, transparent);
+		overflow: hidden;
+		display: flex;
+		align-items: flex-end;
+		z-index: 10;
+	}
+
+	.gauge-cpu { left: calc(6.25% - 8px); }
+	.gauge-memory { right: calc(6.25% - 8px); }
+
+	.gauge-used {
+		width: 100%;
+		border-radius: 1.5px;
+		background: color-mix(in srgb, var(--text) 75%, transparent);
+		transition: height 600ms ease;
+	}
 	.nav-info { left: calc(6.25% - 28px); bottom: 6.25%; }
 	.nav-del { right: calc(6.25% - 28px); bottom: 6.25%; }
 
@@ -984,6 +1020,11 @@
 
 		/* no disk line in a small window */
 		.disk {
+			display: none;
+		}
+
+		/* nor load lines */
+		.gauge {
 			display: none;
 		}
 

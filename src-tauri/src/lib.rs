@@ -37,6 +37,28 @@ fn disk_space() -> CmdResult<Disk> {
     Ok(Disk { total: stats.f_blocks * block, free: stats.f_bavail * block })
 }
 
+/// How busy the Mac is, 0…1: the processor (all its cores, since the last time asked) and the memory.
+#[derive(serde::Serialize)]
+struct Load {
+    cpu: f32,
+    memory: f32,
+}
+
+#[tauri::command]
+fn load() -> Load {
+    use sysinfo::{CpuRefreshKind, MemoryRefreshKind, RefreshKind, System};
+    static SYSTEM: std::sync::OnceLock<std::sync::Mutex<System>> = std::sync::OnceLock::new();
+    let system = SYSTEM.get_or_init(|| {
+        let what = RefreshKind::nothing().with_cpu(CpuRefreshKind::nothing().with_cpu_usage()).with_memory(MemoryRefreshKind::nothing().with_ram());
+        std::sync::Mutex::new(System::new_with_specifics(what))
+    });
+    let Ok(mut system) = system.lock() else { return Load { cpu: 0.0, memory: 0.0 } };
+    system.refresh_cpu_usage();
+    system.refresh_memory();
+    let total = system.total_memory().max(1) as f32;
+    Load { cpu: system.global_cpu_usage() / 100.0, memory: system.used_memory() as f32 / total }
+}
+
 #[tauri::command]
 fn list_dir(path: String) -> CmdResult<Vec<Entry>> {
     fs::list_dir(&PathBuf::from(path))
@@ -248,6 +270,7 @@ pub fn run() {
             window_ready,
             home_dir,
             disk_space,
+            load,
             list_dir,
             item_info,
             create_folder,
