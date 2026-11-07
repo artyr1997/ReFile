@@ -5,7 +5,7 @@ filesystem; the interface is Svelte.
 
 - **COLM / LIST**: column view (folder + preview of the selected item) or a list with dates and sizes
 - **BACK / NEW / DEL / INFO**: parent folder, new folder, move to Trash, details and shortcuts
-- **Search**: filters the current folder; under it a faint line, filled as far as the disk is used (hover for the numbers)
+- **Search**: filters the current folder; under it a faint line, filled as far as the disk is used (hover for the numbers; not in a small window)
 - Keys: ↑ ↓ select · → / Enter open · ← back · / search · C / L views · N new folder · I info · Backspace to Trash
 
 ## Run

@@ -982,15 +982,9 @@
 			transition: opacity 200ms ease;
 		}
 
+		/* no disk line in a small window */
 		.disk {
-			bottom: 5px;
-			width: calc(100% - 200px);
-			transition: opacity 200ms ease;
-		}
-
-		/* with the search: only in the window in use */
-		:global(html.blurred) .disk {
-			opacity: 0;
+			display: none;
 		}
 
 		/* only in the window in use, while nothing is typed in it */
