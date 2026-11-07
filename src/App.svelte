@@ -453,15 +453,29 @@
 		}
 	}
 
+	// how full the disk is, 0…1, as the line under the search
+	let disk = $state<{ total: number; free: number } | null>(null);
+	const diskFull = $derived(disk && disk.total > 0 ? 1 - disk.free / disk.total : 0);
+	const gb = (bytes: number) => `${Math.round(bytes / 1e9)} GB`;
+	const readDisk = () => files.diskSpace().then(d => (disk = d)).catch(() => {});
+
 	onMount(() => {
+		readDisk();
+		const diskTimer = setInterval(readDisk, 60_000);
 		files.homeDir().then(dir => {
 			home = dir;
 			navigate(dir);
 		});
 		// files may change in other apps while ReFile is in the background
-		const refresh = () => reload();
+		const refresh = () => {
+			reload();
+			readDisk();
+		};
 		window.addEventListener('focus', refresh);
-		return () => window.removeEventListener('focus', refresh);
+		return () => {
+			window.removeEventListener('focus', refresh);
+			clearInterval(diskTimer);
+		};
 	});
 
 	const shortcuts = [
@@ -577,6 +591,11 @@
 		title="Search this folder (/)"
 		oninput={() => (selected = 0)}
 	/>
+	{#if disk}
+		<div class="disk" title="{gb(disk.total - disk.free)} of {gb(disk.total)} used, {gb(disk.free)} free">
+			<div class="disk-used" style="width: {diskFull * 100}%"></div>
+		</div>
+	{/if}
 </main>
 
 {#if popup === 'delete' && current}
@@ -915,6 +934,25 @@
 		opacity: 0.55;
 	}
 
+	/* how full the disk is: a faint line under the search, filled as far as used (as the lines on ReDesk) */
+	.disk {
+		position: absolute;
+		left: 50%;
+		bottom: calc(6.25% - 16px);
+		transform: translateX(-50%);
+		width: 360px;
+		height: 3px;
+		border-radius: 1.5px;
+		background: color-mix(in srgb, var(--text) 25%, transparent);
+		overflow: hidden;
+	}
+
+	.disk-used {
+		height: 100%;
+		border-radius: 1.5px;
+		background: color-mix(in srgb, var(--text) 75%, transparent);
+	}
+
 	/* ── a small window: the two columns share it; the list keeps size and date while they fit ── */
 	@media (max-width: 759px), (max-height: 559px) {
 		.title {
@@ -942,6 +980,17 @@
 			width: calc(100% - 200px);
 			font-size: 18px;
 			transition: opacity 200ms ease;
+		}
+
+		.disk {
+			bottom: 5px;
+			width: calc(100% - 200px);
+			transition: opacity 200ms ease;
+		}
+
+		/* with the search: only in the window in use */
+		:global(html.blurred) .disk {
+			opacity: 0;
 		}
 
 		/* only in the window in use, while nothing is typed in it */

@@ -17,6 +17,26 @@ fn home_dir() -> CmdResult<String> {
         .ok_or_else(|| "No home folder".into())
 }
 
+/// The disk the user's files are on: its size and how much is free, in bytes.
+#[derive(serde::Serialize)]
+struct Disk {
+    total: u64,
+    free: u64,
+}
+
+#[tauri::command]
+fn disk_space() -> CmdResult<Disk> {
+    let home = dirs::home_dir().ok_or("no home folder")?;
+    let path = std::ffi::CString::new(home.to_string_lossy().as_bytes()).map_err(|e| e.to_string())?;
+    let mut stats: libc::statfs = unsafe { std::mem::zeroed() };
+    // SAFETY: a valid C string and a statfs to fill.
+    if unsafe { libc::statfs(path.as_ptr(), &mut stats) } != 0 {
+        return Err(std::io::Error::last_os_error().to_string());
+    }
+    let block = stats.f_bsize as u64;
+    Ok(Disk { total: stats.f_blocks * block, free: stats.f_bavail * block })
+}
+
 #[tauri::command]
 fn list_dir(path: String) -> CmdResult<Vec<Entry>> {
     fs::list_dir(&PathBuf::from(path))
@@ -227,6 +247,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             window_ready,
             home_dir,
+            disk_space,
             list_dir,
             item_info,
             create_folder,

@@ -25,6 +25,7 @@ export interface Info {
 
 export const files = {
 	homeDir: () => invoke<string>('home_dir'),
+	diskSpace: () => invoke<{ total: number; free: number }>('disk_space'),
 	list: (path: string) => invoke<Entry[]>('list_dir', { path }),
 	info: (path: string) => invoke<Info>('item_info', { path }),
 	createFolder: (parent: string, name: string) => invoke<string>('create_folder', { parent, name }),
