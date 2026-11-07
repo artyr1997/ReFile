@@ -519,9 +519,11 @@
 	<div class="gauge gauge-cpu" title="Processor {Math.round(load.cpu * 100)}%">
 		<div class="gauge-used" style="height: {Math.min(load.cpu, 1) * 100}%"></div>
 	</div>
+	<span class="gauge-number gauge-cpu">{Math.round(load.cpu * 100)}</span>
 	<div class="gauge gauge-memory" title="Memory {Math.round(load.memory * 100)}%">
 		<div class="gauge-used" style="height: {Math.min(load.memory, 1) * 100}%"></div>
 	</div>
+	<span class="gauge-number gauge-memory">{Math.round(load.memory * 100)}</span>
 {/if}
 
 <button class="side plain nav-info" onclick={openInfo} title="Info (I)">INFO</button>
@@ -607,6 +609,7 @@
 		<div class="disk" title="{gb(disk.total - disk.free)} of {gb(disk.total)} used, {gb(disk.free)} free">
 			<div class="disk-used" style="width: {diskFull * 100}%"></div>
 		</div>
+		<span class="disk-number">{Math.round(diskFull * 100)}% · {gb(disk.free)} free</span>
 	{/if}
 </main>
 
@@ -770,6 +773,34 @@
 
 	.gauge-cpu { left: calc(6.25% - 8px); }
 	.gauge-memory { right: calc(6.25% - 8px); }
+
+	/* each line's number, in percent, under it, centred on it */
+	.gauge-number {
+		position: fixed;
+		top: calc(50% + 92px);
+		width: 40px;
+		text-align: center;
+		font-family: 'Kurale', serif;
+		font-size: 13px;
+		line-height: 16px;
+		color: var(--muted);
+		z-index: 10;
+	}
+
+	.gauge-number.gauge-cpu { left: calc(6.25% - 26.5px); }
+	.gauge-number.gauge-memory { right: calc(6.25% - 26.5px); }
+
+	.disk-number {
+		position: absolute;
+		left: 50%;
+		bottom: calc(6.25% - 36px);
+		transform: translateX(-50%);
+		white-space: nowrap;
+		font-family: 'Kurale', serif;
+		font-size: 13px;
+		line-height: 16px;
+		color: var(--muted);
+	}
 
 	.gauge-used {
 		width: 100%;
@@ -1023,8 +1054,10 @@
 			display: none;
 		}
 
-		/* nor load lines */
-		.gauge {
+		/* nor load lines, nor their numbers */
+		.gauge,
+		.gauge-number,
+		.disk-number {
 			display: none;
 		}
 
