@@ -611,8 +611,8 @@
 		<div class="disk" title="{gb(disk.total - disk.free)} of {gb(disk.total)} used, {gb(disk.free)} free">
 			<div class="disk-used" style="width: {diskFull * 100}%"></div>
 		</div>
-		<span class="disk-number disk-used-number">{gb(disk.total - disk.free)} used</span>
-		<span class="disk-number">Disc</span>
+		<span class="disk-number disk-used-number">{gb(disk.total - disk.free)}</span>
+		<span class="disk-number disk-name">DISC</span>
 		<span class="disk-number disk-free-number">{gb(disk.free)} free</span>
 	{/if}
 </main>
@@ -1041,6 +1041,13 @@
 	.disk-number.disk-free-number { bottom: calc(6.25% - 16px - 6.5px); }
 	.disk-number.disk-used-number { left: calc(50% - 180px - 14px); transform: translateX(-100%); }
 	.disk-number.disk-free-number { left: calc(50% + 180px + 14px); transform: none; }
+	/* as the load lines' names (CPU, RAM) */
+	.disk-number.disk-name {
+		font-family: 'Noto Sans JP', sans-serif;
+		font-size: 10px;
+		letter-spacing: 0.18em;
+		text-indent: 0.18em;
+	}
 
 	.disk-used {
 		height: 100%;
