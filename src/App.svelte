@@ -611,7 +611,7 @@
 		<div class="disk" title="{gb(disk.total - disk.free)} of {gb(disk.total)} used, {gb(disk.free)} free">
 			<div class="disk-used" style="width: {diskFull * 100}%"></div>
 		</div>
-		<span class="disk-number disk-used-number">{Math.round(diskFull * 100)}% · {gb(disk.total - disk.free)} used</span>
+		<span class="disk-number disk-used-number">{gb(disk.total - disk.free)} used</span>
 		<span class="disk-number">Disc</span>
 		<span class="disk-number disk-free-number">{gb(disk.free)} free</span>
 	{/if}
@@ -1036,9 +1036,11 @@
 		overflow: hidden;
 	}
 
-	/* under the line: how full at its left end, how much is free at its right */
-	.disk-number.disk-used-number { left: calc(50% - 180px); transform: none; }
-	.disk-number.disk-free-number { left: auto; right: calc(50% - 180px); transform: none; }
+	/* by the line's ends, level with it: how full on the left, how much is free on the right (Disc under it) */
+	.disk-number.disk-used-number,
+	.disk-number.disk-free-number { bottom: calc(6.25% - 16px - 6.5px); }
+	.disk-number.disk-used-number { left: calc(50% - 180px - 14px); transform: translateX(-100%); }
+	.disk-number.disk-free-number { left: calc(50% + 180px + 14px); transform: none; }
 
 	.disk-used {
 		height: 100%;
