@@ -519,10 +519,12 @@
 	<div class="gauge gauge-cpu" title="Processor {Math.round(load.cpu * 100)}%">
 		<div class="gauge-used" style="height: {Math.min(load.cpu, 1) * 100}%"></div>
 	</div>
+	<span class="gauge-name gauge-cpu">CPU</span>
 	<span class="gauge-number gauge-cpu">{Math.round(load.cpu * 100)}</span>
 	<div class="gauge gauge-memory" title="Memory {Math.round(load.memory * 100)}%">
 		<div class="gauge-used" style="height: {Math.min(load.memory, 1) * 100}%"></div>
 	</div>
+	<span class="gauge-name gauge-memory">RAM</span>
 	<span class="gauge-number gauge-memory">{Math.round(load.memory * 100)}</span>
 {/if}
 
@@ -790,6 +792,24 @@
 	.gauge-number.gauge-cpu { left: calc(6.25% - 26.5px); }
 	.gauge-number.gauge-memory { right: calc(6.25% - 26.5px); }
 
+	/* what each line measures, over it, centred on it */
+	.gauge-name {
+		position: fixed;
+		top: calc(50% - 108px);
+		width: 40px;
+		text-align: center;
+		font-family: 'Noto Sans JP', sans-serif;
+		font-size: 10px;
+		letter-spacing: 0.18em;
+		text-indent: 0.18em;
+		line-height: 16px;
+		color: var(--muted);
+		z-index: 10;
+	}
+
+	.gauge-name.gauge-cpu { left: calc(6.25% - 26.5px); }
+	.gauge-name.gauge-memory { right: calc(6.25% - 26.5px); }
+
 	.disk-number {
 		position: absolute;
 		left: 50%;
@@ -1056,6 +1076,7 @@
 
 		/* nor load lines, nor their numbers */
 		.gauge,
+		.gauge-name,
 		.gauge-number,
 		.disk-number {
 			display: none;
