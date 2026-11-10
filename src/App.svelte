@@ -611,7 +611,9 @@
 		<div class="disk" title="{gb(disk.total - disk.free)} of {gb(disk.total)} used, {gb(disk.free)} free">
 			<div class="disk-used" style="width: {diskFull * 100}%"></div>
 		</div>
+		<span class="disk-number disk-used-number">{Math.round((disk.total - disk.free) / 1e9)}</span>
 		<span class="disk-number disk-name">DISC</span>
+		<span class="disk-number disk-free-number">{Math.round(disk.free / 1e9)}</span>
 	{/if}
 </main>
 
@@ -1034,6 +1036,11 @@
 		overflow: hidden;
 	}
 
+	/* by the line's ends, level with it: the gigabytes used on the left, free on the right (DISC under it) */
+	.disk-number.disk-used-number,
+	.disk-number.disk-free-number { bottom: calc(6.25% - 16px - 6.5px); }
+	.disk-number.disk-used-number { left: calc(50% - 180px - 14px); transform: translateX(-100%); }
+	.disk-number.disk-free-number { left: calc(50% + 180px + 14px); transform: none; }
 	/* as the load lines' names (CPU, RAM) */
 	.disk-number.disk-name {
 		font-family: 'Noto Sans JP', sans-serif;
