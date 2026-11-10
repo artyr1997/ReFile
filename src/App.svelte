@@ -611,6 +611,7 @@
 		<div class="disk" title="{gb(disk.total - disk.free)} of {gb(disk.total)} used, {gb(disk.free)} free">
 			<div class="disk-used" style="width: {diskFull * 100}%"></div>
 		</div>
+		<span class="disk-name">DISK</span>
 		<span class="disk-number">{Math.round(diskFull * 100)}% · {gb(disk.free)} free</span>
 	{/if}
 </main>
@@ -1034,6 +1035,19 @@
 		overflow: hidden;
 	}
 
+	/* what the line measures, at its left end, level with it (as the load lines' names) */
+	.disk-name {
+		position: absolute;
+		left: calc(50% - 180px - 14px);
+		bottom: calc(6.25% - 16px - 6.5px);
+		transform: translateX(-100%);
+		font-family: 'Noto Sans JP', sans-serif;
+		font-size: 10px;
+		letter-spacing: 0.18em;
+		line-height: 16px;
+		color: var(--muted);
+	}
+
 	.disk-used {
 		height: 100%;
 		border-radius: 1.5px;
@@ -1078,6 +1092,7 @@
 		.gauge,
 		.gauge-name,
 		.gauge-number,
+		.disk-name,
 		.disk-number {
 			display: none;
 		}
