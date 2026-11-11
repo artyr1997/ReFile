@@ -64,6 +64,14 @@ fn list_dir(path: String) -> CmdResult<Vec<Entry>> {
     fs::list_dir(&PathBuf::from(path))
 }
 
+/// A folder's size, all that is inside it; off the main thread, as a big one takes a while.
+#[tauri::command]
+async fn folder_size(path: String) -> CmdResult<u64> {
+    tauri::async_runtime::spawn_blocking(move || fs::tree_size(&PathBuf::from(path)))
+        .await
+        .map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 fn item_info(path: String) -> CmdResult<Info> {
     fs::info(&PathBuf::from(path))
@@ -536,6 +544,7 @@ pub fn run() {
             load,
             list_dir,
             item_info,
+            folder_size,
             create_folder,
             rename_item,
             duplicate_item,

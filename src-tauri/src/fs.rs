@@ -75,7 +75,7 @@ fn entry(path: PathBuf) -> Option<Entry> {
     Some(Entry {
         name: name_of(&path),
         is_dir,
-        size: if is_dir { None } else { Some(meta.len()) },
+        size: if meta.is_dir() { None } else { Some(meta.len()) },
         modified: millis(meta.modified()),
         path: path.to_string_lossy().into_owned(),
     })
@@ -142,6 +142,25 @@ fn kind(path: &Path, meta: &Metadata) -> String {
     }
 }
 
+/// Everything inside a folder (or an app bundle), in bytes: the files' sizes added up, as Finder counts them.
+/// Links are not followed; what can't be read is left out.
+pub fn tree_size(path: &Path) -> u64 {
+    let mut total = 0;
+    let mut todo = vec![path.to_path_buf()];
+    while let Some(dir) = todo.pop() {
+        let Ok(items) = fs::read_dir(&dir) else { continue };
+        for item in items.flatten() {
+            let Ok(meta) = item.metadata() else { continue };
+            if meta.is_dir() {
+                todo.push(item.path());
+            } else if meta.is_file() {
+                total += meta.len();
+            }
+        }
+    }
+    total
+}
+
 pub fn info(path: &Path) -> Result<Info> {
     let meta = metadata(path).ok_or_else(|| format!("{} not found", path.display()))?;
     let is_dir = meta.is_dir() && !is_bundle(path);
@@ -157,7 +176,7 @@ pub fn info(path: &Path) -> Result<Info> {
         path: path.to_string_lossy().into_owned(),
         kind: kind(path, &meta),
         is_dir,
-        size: if is_dir { None } else { Some(meta.len()) },
+        size: if meta.is_dir() { None } else { Some(meta.len()) },
         items,
         created: millis(meta.created()),
         modified: millis(meta.modified()),

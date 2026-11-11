@@ -95,10 +95,50 @@
 		}
 	}
 
+	// ── folders' sizes: measured in the background, two at a time, the folder in view first ──
+	let sizes: Record<string, number> = $state({});
+	let waiting: string[] = [];
+	let measuring = 0;
+	function measureNext() {
+		while (measuring < 2 && waiting.length) {
+			const path = waiting.shift()!;
+			measuring++;
+			files
+				.folderSize(path)
+				.then(bytes => (sizes[path] = bytes))
+				.catch(() => {})
+				.finally(() => {
+					measuring--;
+					measureNext();
+				});
+		}
+	}
+	/** these folders measured next (the ones asked for before and not yet begun are dropped) */
+	function measure(paths: string[]) {
+		waiting = paths.filter(p => !(p in sizes));
+		measureNext();
+	}
+	$effect(() => {
+		measure(entries.filter(e => e.size === null).map(e => e.path));
+	});
+	// a folder (or an app) shown on its own, in the info popup or the right column: measured first
+	$effect(() => {
+		for (const one of [info, previewInfo]) {
+			if (one && one.size === null && !(one.path in sizes) && !waiting.includes(one.path)) {
+				waiting.unshift(one.path);
+				measureNext();
+			}
+		}
+	});
+	/** a file's size, or a folder's once measured */
+	const sizeOf = (entry: { path: string; size: number | null }) => entry.size ?? sizes[entry.path] ?? null;
+
 	/** Re-reads the current folder, keeping the selection on the same item when it still exists. */
 	async function reload(selectName = current?.name) {
 		if (!cwd) return;
 		try {
+			// the folders here measured again: something in them may have changed
+			for (const e of entries) delete sizes[e.path];
 			entries = await files.list(cwd);
 			listError = '';
 			const idx = selectName ? visible.findIndex(e => e.name === selectName) : -1;
@@ -572,7 +612,7 @@
 			{:else if previewInfo}
 				<dl class="details">
 					<dt>Kind</dt><dd>{previewInfo.kind}</dd>
-					<dt>Size</dt><dd>{formatSize(previewInfo.size)}</dd>
+					<dt>Size</dt><dd>{formatSize(sizeOf(previewInfo))}</dd>
 					<dt>Modified</dt><dd>{formatDate(previewInfo.modified)}</dd>
 					<dt>Created</dt><dd>{formatDate(previewInfo.created)}</dd>
 				</dl>
@@ -589,7 +629,7 @@
 					oncontextmenu={() => openActions(i)}
 				>
 					<span class="cell-name"><span class="name" class:ink-mark={i === selected}>{entry.name}</span></span>
-					<span class="cell size">{formatSize(entry.size)}</span>
+					<span class="cell size">{formatSize(sizeOf(entry))}</span>
 					<span class="cell">{formatDate(entry.modified)}</span>
 				</button>
 			{:else}
@@ -675,9 +715,8 @@
 				<dt>Kind</dt><dd>{info.kind}</dd>
 				{#if info.isDir}
 					<dt>Items</dt><dd>{info.items ?? '--'}</dd>
-				{:else}
-					<dt>Size</dt><dd>{formatSize(info.size)}</dd>
 				{/if}
+				<dt>Size</dt><dd>{formatSize(sizeOf(info))}</dd>
 				<dt>Created</dt><dd>{formatDate(info.created)}</dd>
 				<dt>Modified</dt><dd>{formatDate(info.modified)}</dd>
 				<dt>Where</dt><dd class="path">{parentOf(info.path) ?? '/'}</dd>

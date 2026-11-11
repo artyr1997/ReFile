@@ -6,7 +6,7 @@ export interface Entry {
 	path: string;
 	/** folder you can step into (app bundles count as files) */
 	isDir: boolean;
-	/** bytes; null for folders */
+	/** bytes; null for folders (and app bundles): files.folderSize measures them */
 	size: number | null;
 	/** ms since epoch */
 	modified: number | null;
@@ -29,6 +29,7 @@ export const files = {
 	load: () => invoke<{ cpu: number; memory: number }>('load'),
 	list: (path: string) => invoke<Entry[]>('list_dir', { path }),
 	info: (path: string) => invoke<Info>('item_info', { path }),
+	folderSize: (path: string) => invoke<number>('folder_size', { path }),
 	createFolder: (parent: string, name: string) => invoke<string>('create_folder', { parent, name }),
 	rename: (path: string, name: string) => invoke<string>('rename_item', { path, name }),
 	duplicate: (path: string) => invoke<string>('duplicate_item', { path }),
