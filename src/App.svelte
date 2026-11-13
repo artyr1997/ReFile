@@ -587,6 +587,7 @@
 	});
 
 	const shortcuts = [
+		['⌘ N', 'New window'],
 		['↑ / ↓', 'Select'],
 		['→ / Enter', 'Open'],
 		['Space', 'Look at a picture or text'],

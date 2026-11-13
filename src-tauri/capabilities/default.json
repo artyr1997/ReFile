@@ -1,9 +1,9 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "UI permissions: core plus the custom window buttons and drag area",
+  "description": "UI permissions: core plus the custom window buttons and drag area; every window (\u2318N opens more)",
   "windows": [
-    "main"
+    "*"
   ],
   "permissions": [
     "core:default",
