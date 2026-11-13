@@ -77,7 +77,7 @@ export function formatSize(bytes: number | null): string {
 	return `${unit === 0 ? Math.round(value) : value.toFixed(1)} ${units[unit]}`;
 }
 
-// ── what opens where: pictures and text in ReFile's viewer, music in RePlay ──
+// ── what opens where: pictures and text in ReFile's viewer, music and videos in RePlay ──
 
 const IMAGES: Record<string, string> = {
 	png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp',
@@ -86,6 +86,7 @@ const IMAGES: Record<string, string> = {
 };
 // the same as RePlay plays
 const AUDIO = ['mp3', 'm4a', 'aac', 'alac', 'flac', 'wav', 'aif', 'aiff', 'ogg', 'opus'];
+const VIDEO = ['mp4', 'm4v', 'mov', 'webm'];
 const TEXT = [
 	'txt', 'md', 'markdown', 'log', 'csv', 'tsv', 'json', 'jsonl', 'yaml', 'yml', 'toml', 'ini', 'conf', 'cfg', 'env',
 	'xml', 'html', 'htm', 'css', 'scss', 'js', 'mjs', 'cjs', 'ts', 'tsx', 'jsx', 'svelte', 'vue', 'py', 'rb', 'rs',
@@ -99,10 +100,11 @@ function extension(name: string): string {
 }
 
 /** A file with no extension (README, Makefile) is tried as text; ReFile falls back to the Mac if it isn't. */
-export function kindOf(name: string): 'image' | 'text' | 'audio' | 'other' {
+export function kindOf(name: string): 'image' | 'text' | 'audio' | 'video' | 'other' {
 	const ext = extension(name);
 	if (ext in IMAGES) return 'image';
 	if (AUDIO.includes(ext)) return 'audio';
+	if (VIDEO.includes(ext)) return 'video';
 	if (TEXT.includes(ext) || ext === '') return 'text';
 	return 'other';
 }

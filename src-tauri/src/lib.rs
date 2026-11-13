@@ -162,7 +162,7 @@ fn write_text(path: String, text: String) -> CmdResult<()> {
     std::fs::write(&path, text).map_err(|e| e.to_string())
 }
 
-/// Music goes to RePlay (which plays its folder from it); without RePlay, to the Mac's default.
+/// Music and videos go to RePlay (which plays their folder from them); without RePlay, to the Mac's default.
 #[tauri::command]
 fn open_in_replay(app: tauri::AppHandle, path: String) -> CmdResult<()> {
     let sent = std::process::Command::new("open")
