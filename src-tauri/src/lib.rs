@@ -113,7 +113,7 @@ fn move_to_trash(path: String) -> CmdResult<()> {
 }
 
 /// Opens a file (or app) with its default macOS application.
-// ── the viewer: pictures and text open inside ReFile, music in ReSound ──
+// ── the viewer: pictures and text open inside ReFile, music in RePlay ──
 
 /// A picture's bytes, handed to the UI as they are (an ArrayBuffer there, no base64).
 #[tauri::command]
@@ -162,9 +162,9 @@ fn write_text(path: String, text: String) -> CmdResult<()> {
     std::fs::write(&path, text).map_err(|e| e.to_string())
 }
 
-/// Music goes to ReSound (which plays its folder from it); without ReSound, to the Mac's default.
+/// Music goes to RePlay (which plays its folder from it); without RePlay, to the Mac's default.
 #[tauri::command]
-fn open_in_resound(app: tauri::AppHandle, path: String) -> CmdResult<()> {
+fn open_in_replay(app: tauri::AppHandle, path: String) -> CmdResult<()> {
     let sent = std::process::Command::new("open")
         .args(["-b", "com.artursavytskyi.resound", &path])
         .status()
@@ -550,7 +550,7 @@ pub fn run() {
             read_file,
             read_text,
             write_text,
-            open_in_resound,
+            open_in_replay,
         ])
         .run(tauri::generate_context!())
         .expect("error while running ReFile");

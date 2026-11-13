@@ -212,12 +212,12 @@
 		if (parent) navigate(parent, nameOf(cwd));
 	}
 
-	/** Folders open in place, pictures and text in the viewer, music in ReSound, the rest with the Mac's app. */
+	/** Folders open in place, pictures and text in the viewer, music in RePlay, the rest with the Mac's app. */
 	async function openEntry(entry: Entry | undefined = current) {
 		if (!entry) return;
 		if (entry.isDir) return navigate(entry.path);
 		const kind = kindOf(entry.name);
-		if (kind === 'audio') return files.openInReSound(entry.path);
+		if (kind === 'audio') return files.openInRePlay(entry.path);
 		if ((kind === 'image' || kind === 'text') && (await show(entry))) return;
 		await files.open(entry.path);
 	}
