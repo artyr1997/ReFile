@@ -7,7 +7,7 @@ filesystem; the interface is Svelte.
 - **DEL / INFO**: move to Trash, details and shortcuts; ← goes to the parent folder, N makes a new one
 - **Load**: a faint line at each side, filled from below as far as used: the processor on the left, the memory on the right, each with its percent under it (not in a small window)
 - **Search**: filters the current folder; under it a faint line, filled as far as the disk is used, with the percent used and what is free under it (not in a small window)
-- Keys: ↑ ↓ select · → / Enter open · ← back · / search · C / L views · N new folder · I info · Backspace to Trash
+- Keys: ↑ ↓ select · → / Enter open · ← back · / search · C / L views · ⌃⌘1 / 2 / 3 / 4 sort by name / kind / date / size (folders on top; the same keys again turn the order round; kept) · N new folder · I info · Backspace to Trash
 
 ## Run
 

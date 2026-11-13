@@ -65,9 +65,62 @@
 		toastTimer = setTimeout(() => (toast = ''), 1400);
 	}
 
+	// ── sorting: ⌃⌘1 name, ⌃⌘2 kind, ⌃⌘3 date, ⌃⌘4 size; the same keys again turn the order round ──
+	type SortKey = 'name' | 'kind' | 'date' | 'size';
+	const sortKeys: SortKey[] = ['name', 'kind', 'date', 'size'];
+	// the way each starts: names A to Z, kinds A to Z, the newest first, the biggest first
+	const firstWay: Record<SortKey, 1 | -1> = { name: 1, kind: 1, date: -1, size: -1 };
+	function readSort(): { key: SortKey; way: 1 | -1 } {
+		try {
+			const saved = JSON.parse(localStorage.getItem('sort') ?? '');
+			if (sortKeys.includes(saved.key) && (saved.way === 1 || saved.way === -1)) return saved;
+		} catch {}
+		return { key: 'name', way: 1 };
+	}
+	let sort = $state(readSort());
+	const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+	const extOf = (e: Entry) => (e.isDir ? '' : (e.name.match(/\.([^.]+)$/)?.[1] ?? '').toLowerCase());
+	/** folders stay on top; inside them and the files, the chosen order, then the name */
+	function sorted(list: Entry[]): Entry[] {
+		const { key, way } = sort;
+		const byName = (a: Entry, b: Entry) => collator.compare(a.name, b.name);
+		const by = (a: Entry, b: Entry): number => {
+			if (key === 'kind') return collator.compare(extOf(a), extOf(b));
+			if (key === 'date') return (a.modified ?? 0) - (b.modified ?? 0);
+			if (key === 'size') {
+				// a folder not measured yet goes to the end either way
+				const x = sizeOf(a), y = sizeOf(b);
+				if (x === null || y === null) return x === y ? 0 : x === null ? -way : way;
+				return x - y;
+			}
+			return byName(a, b);
+		};
+		return [...list].sort((a, b) => Number(b.isDir) - Number(a.isDir) || way * by(a, b) || byName(a, b));
+	}
+	/** sorts by `key`; again by the same, the other way round; the selection stays on its item */
+	function sortBy(key: SortKey) {
+		const keep = current?.path;
+		sort = { key, way: sort.key === key ? (-sort.way as 1 | -1) : firstWay[key] };
+		try {
+			localStorage.setItem('sort', JSON.stringify(sort));
+		} catch {}
+		const words: Record<SortKey, [string, string]> = {
+			name: ['A to Z', 'Z to A'],
+			kind: ['A to Z', 'Z to A'],
+			date: ['oldest first', 'newest first'],
+			size: ['smallest first', 'biggest first'],
+		};
+		showToast(`By ${key}, ${words[key][sort.way === 1 ? 0 : 1]}`);
+		keepSelection(keep);
+	}
+	function keepSelection(path: string | undefined) {
+		const i = path ? visible.findIndex(e => e.path === path) : -1;
+		if (i >= 0) selected = i;
+	}
+
 	let visible = $derived.by(() => {
 		const q = query.trim().toLowerCase();
-		return q ? entries.filter(e => e.name.toLowerCase().includes(q)) : entries;
+		return sorted(q ? entries.filter(e => e.name.toLowerCase().includes(q)) : entries);
 	});
 	let current: Entry | undefined = $derived(visible[selected]);
 	// what the viewer steps through
@@ -87,7 +140,7 @@
 			entries = list;
 			listError = '';
 			query = '';
-			const idx = selectName ? list.findIndex(e => e.name === selectName) : -1;
+			const idx = selectName ? visible.findIndex(e => e.name === selectName) : -1;
 			selected = idx >= 0 ? idx : 0;
 			await scrollSelectedIntoView();
 		} catch (e) {
@@ -105,7 +158,12 @@
 			measuring++;
 			files
 				.folderSize(path)
-				.then(bytes => (sizes[path] = bytes))
+				.then(bytes => {
+					// sorted by size, the list moves as sizes come: the selection keeps to its item
+					const keep = current?.path;
+					sizes[path] = bytes;
+					if (sort.key === 'size') keepSelection(keep);
+				})
 				.catch(() => {})
 				.finally(() => {
 					measuring--;
@@ -462,6 +520,9 @@
 		} else if (e.key === 'ArrowRight') {
 			e.preventDefault();
 			if (current?.isDir) openEntry();
+		} else if (e.ctrlKey && e.metaKey && !e.altKey && /^Digit[1-4]$/.test(e.code)) {
+			e.preventDefault();
+			sortBy(sortKeys[Number(e.code.slice(5)) - 1]);
 		} else if (e.key === 'Enter' || (mod && e.key === 'o')) {
 			e.preventDefault();
 			openEntry();
@@ -533,6 +594,7 @@
 		['←', 'Back'],
 		['/', 'Search'],
 		['C / L', 'Columns / List'],
+		['⌃⌘ 1 / 2 / 3 / 4', 'Sort by name / kind / date / size (again: the other way)'],
 		['N', 'New folder'],
 		['I', 'Info'],
 		['E / right click', 'Actions'],
@@ -602,7 +664,7 @@
 			{#if previewError}
 				<p class="empty">{previewError}</p>
 			{:else if preview}
-				{#each preview as entry (entry.path)}
+				{#each sorted(preview) as entry (entry.path)}
 					<button class="row" onclick={() => openFromPreview(entry)}>
 						<span class="name">{entry.name}</span>
 					</button>
