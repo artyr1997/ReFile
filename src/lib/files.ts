@@ -40,7 +40,6 @@ export const files = {
 	readFile: (path: string) => invoke<ArrayBuffer>('read_file', { path }),
 	readText: (path: string) => invoke<{ text: string; truncated: boolean }>('read_text', { path }),
 	writeText: (path: string, text: string) => invoke<void>('write_text', { path, text }),
-	openInRePlay: (path: string) => invoke<void>('open_in_replay', { path }),
 };
 
 export function parentOf(path: string): string | null {
@@ -77,16 +76,18 @@ export function formatSize(bytes: number | null): string {
 	return `${unit === 0 ? Math.round(value) : value.toFixed(1)} ${units[unit]}`;
 }
 
-// ── what opens where: pictures and text in ReFile's viewer, music and videos in RePlay ──
+// ── what each file is, and the mode it opens in ──
 
 const IMAGES: Record<string, string> = {
 	png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp',
 	heic: 'image/heic', heif: 'image/heif', avif: 'image/avif', bmp: 'image/bmp', tif: 'image/tiff',
 	tiff: 'image/tiff', svg: 'image/svg+xml', ico: 'image/x-icon',
 };
-// the same as RePlay plays
+// what PLAY plays
 const AUDIO = ['mp3', 'm4a', 'aac', 'alac', 'flac', 'wav', 'aif', 'aiff', 'ogg', 'opus'];
 const VIDEO = ['mp4', 'm4v', 'mov', 'webm'];
+// books VIEW reads
+const BOOKS = ['pdf', 'epub', 'cbz', 'cbr'];
 const TEXT = [
 	'txt', 'md', 'markdown', 'log', 'csv', 'tsv', 'json', 'jsonl', 'yaml', 'yml', 'toml', 'ini', 'conf', 'cfg', 'env',
 	'xml', 'html', 'htm', 'css', 'scss', 'js', 'mjs', 'cjs', 'ts', 'tsx', 'jsx', 'svelte', 'vue', 'py', 'rb', 'rs',
@@ -100,9 +101,12 @@ function extension(name: string): string {
 }
 
 /** A file with no extension (README, Makefile) is tried as text; ReFile falls back to the Mac if it isn't. */
-export function kindOf(name: string): 'image' | 'text' | 'audio' | 'video' | 'other' {
+export type Kind = 'image' | 'book' | 'text' | 'audio' | 'video' | 'other';
+
+export function kindOf(name: string): Kind {
 	const ext = extension(name);
 	if (ext in IMAGES) return 'image';
+	if (BOOKS.includes(ext)) return 'book';
 	if (AUDIO.includes(ext)) return 'audio';
 	if (VIDEO.includes(ext)) return 'video';
 	if (TEXT.includes(ext) || ext === '') return 'text';
@@ -111,4 +115,26 @@ export function kindOf(name: string): 'image' | 'text' | 'audio' | 'video' | 'ot
 
 export function imageType(name: string): string {
 	return IMAGES[extension(name)] ?? '';
+}
+
+export function bookFormat(name: string): 'pdf' | 'epub' | 'cbz' | 'cbr' {
+	return extension(name) as 'pdf' | 'epub' | 'cbz' | 'cbr';
+}
+
+// ── the four modes: FILE everything, TEXT texts, VIEW pictures and books, PLAY music and videos ──
+
+export type Mode = 'file' | 'text' | 'view' | 'play';
+export const modes: Mode[] = ['file', 'text', 'view', 'play'];
+
+/** The mode a file opens in; null: not one of ReFile's (the Mac's app opens it). */
+export function modeOf(kind: Kind): Exclude<Mode, 'file'> | null {
+	if (kind === 'text') return 'text';
+	if (kind === 'image' || kind === 'book') return 'view';
+	if (kind === 'audio' || kind === 'video') return 'play';
+	return null;
+}
+
+/** Whether `entry` shows in `mode`: folders always, files of the mode's kinds. */
+export function inMode(entry: Entry, mode: Mode): boolean {
+	return mode === 'file' || entry.isDir || modeOf(kindOf(entry.name)) === mode;
 }

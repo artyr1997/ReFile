@@ -5,15 +5,67 @@
 	import WindowControls from './lib/WindowControls.svelte';
 	import Popup from './lib/Popup.svelte';
 	import { scrollFade } from './lib/scrollFade';
-	import { files, parentOf, nameOf, formatDate, formatSize, kindOf, imageType } from './lib/files';
-	import type { Entry, Info } from './lib/files';
+	import Play from './lib/play/Play.svelte';
+	import Video from './lib/play/Video.svelte';
+	import Reader from './lib/view/Reader.svelte';
+	import { coverOf } from './lib/view/formats';
+	import type { Book } from './lib/view/books';
+	import type { Tab } from './lib/play/music';
+	import { files, parentOf, nameOf, formatDate, formatSize, kindOf, imageType, bookFormat, modeOf, inMode, modes } from './lib/files';
+	import type { Entry, Info, Mode } from './lib/files';
 
 	type View = 'colm' | 'list';
 	type PopupKind = 'none' | 'delete' | 'new' | 'info' | 'actions' | 'rename';
 	type ActionId = 'open' | 'rename' | 'duplicate' | 'compress' | 'copy' | 'reveal' | 'info' | 'trash';
 
-	// a window of its own for one picture or text (opened from another window: lib.rs, new_window)
-	const viewOnly: string | undefined = (window as unknown as { __refileView?: string }).__refileView;
+	// a window opened for a file (from FILE, or Open With in Finder: lib.rs, new_window): its mode, the file shown
+	const opened = (window as unknown as { __refileOpen?: { path: string | null; mode: Mode | null } }).__refileOpen;
+
+	// ── the four modes: FILE everything, TEXT texts, VIEW pictures and books, PLAY music and videos ──
+	function readSaved<T extends string>(key: string, allowed: readonly T[], fallback: T): T {
+		try {
+			const saved = localStorage.getItem(key) as T | null;
+			if (saved && allowed.includes(saved)) return saved;
+		} catch {}
+		return fallback;
+	}
+	let mode: Mode = $state(opened ? (opened.mode ?? 'file') : readSaved('mode', modes, 'file'));
+	let playTab: Tab = $state(readSaved<Tab>('playTab', ['folder', 'songs', 'radio'], 'folder'));
+	$effect(() => {
+		try {
+			localStorage.setItem('mode', mode);
+			localStorage.setItem('playTab', playTab);
+		} catch {}
+	});
+	const modeTitles: Record<Mode, string> = {
+		file: 'Everything (F)',
+		text: 'Texts (T)',
+		view: 'Pictures and books (V)',
+		play: 'Music and videos (P)',
+	};
+	/** F / T / V / P, or a corner: this folder in that mode, the selection kept where it can be */
+	function setMode(next: Mode) {
+		if (next === mode) return;
+		const keep = current?.path;
+		closeViewer();
+		mode = next;
+		query = '';
+		const i = keep ? visible.findIndex(e => e.path === keep) : -1;
+		selected = i >= 0 ? i : 0;
+		scrollSelectedIntoView();
+	}
+
+	// a small window: PLAY is the mini player there
+	let winWidth = $state(window.innerWidth);
+	let winHeight = $state(window.innerHeight);
+	let small = $derived(winWidth < 760 || winHeight < 560);
+	let playPanel: ReturnType<typeof Play> | undefined = $state();
+	// the browser shows, but in PLAY's songs and radio, and its mini player
+	let browsing = $derived(mode !== 'play' || (playTab === 'folder' && !small));
+
+	// VIEW: a book being read; PLAY: videos being shown
+	let reading: Book | null = $state(null);
+	let video: { paths: string[]; start: number } | null = $state(null);
 
 	let view: View = $state('colm');
 	let cwd = $state('');
@@ -125,10 +177,11 @@
 
 	let visible = $derived.by(() => {
 		const q = query.trim().toLowerCase();
-		return sorted(q ? entries.filter(e => e.name.toLowerCase().includes(q)) : entries);
+		const here = entries.filter(e => inMode(e, mode));
+		return sorted(q ? here.filter(e => e.name.toLowerCase().includes(q)) : here);
 	});
 	let current: Entry | undefined = $derived(visible[selected]);
-	// what the viewer steps through
+	// what the viewer steps through: the pictures (VIEW), the texts (TEXT), both (FILE's quick look)
 	let viewable = $derived(visible.filter(e => !e.isDir && (kindOf(e.name) === 'image' || kindOf(e.name) === 'text')));
 	let title = $derived(cwd ? nameOf(cwd) : '');
 	// the home folder is the top of ReFile: BACK disappears there
@@ -217,22 +270,54 @@
 		if (parent) navigate(parent, nameOf(cwd));
 	}
 
-	/** Folders open in place, pictures and text in the viewer, music and videos in RePlay, the rest with the Mac's app. */
+	/**
+	 * Folders open in place. A file opened in FILE goes to a window of its own, in its mode (music just
+	 * plays, this window turning to PLAY); in a mode, it opens here. What isn't ReFile's opens in the Mac's app.
+	 */
 	async function openEntry(entry: Entry | undefined = current) {
 		if (!entry) return;
 		if (entry.isDir) return navigate(entry.path);
 		const kind = kindOf(entry.name);
-		if (kind === 'audio' || kind === 'video') return files.openInRePlay(entry.path);
-		// pictures and texts in a window of their own
-		if (kind === 'image' || kind === 'text') return invoke('new_window', { view: entry.path });
-		await files.open(entry.path);
+		const its = modeOf(kind);
+		if (!its) return files.open(entry.path);
+		if (mode === 'file') {
+			if (kind === 'audio') {
+				mode = 'play';
+				playTab = 'folder';
+				await tick();
+				return openHere(entry);
+			}
+			return invoke('new_window', { open: entry.path, mode: its });
+		}
+		await openHere(entry);
 	}
 
-	/** Esc, CLOSE: the viewer goes; a viewer's own window closes (its text saved first). */
-	async function leaveViewer() {
-		if (!viewOnly) return closeViewer();
-		await save();
-		getCurrentWindow().close();
+	/** A file opened in its mode, in this window: shown, read, played. False when it can't be. */
+	async function openHere(entry: Entry): Promise<boolean> {
+		const kind = kindOf(entry.name);
+		if (kind === 'image' || kind === 'text') return show(entry);
+		if (kind === 'book') {
+			closeViewer();
+			reading = { path: entry.path, title: entry.name.replace(/\.[^.]+$/, ''), format: bookFormat(entry.name) };
+			return true;
+		}
+		const same = visible.filter(e => !e.isDir && kindOf(e.name) === kind);
+		const start = Math.max(0, same.indexOf(entry));
+		if (kind === 'video') {
+			invoke('pause_music').catch(() => {});
+			video = { paths: same.map(e => e.path), start };
+			return true;
+		}
+		if (kind === 'audio') {
+			await playPanel?.playFiles(same.map(e => e.path), start);
+			return true;
+		}
+		return false;
+	}
+
+	/** Esc, CLOSE: the viewer goes (a text saved first). */
+	function leaveViewer() {
+		closeViewer();
 	}
 
 	/** Puts `entry` in the viewer; false when it can't be shown (not text after all, too big…). */
@@ -314,6 +399,13 @@
 		mainList?.querySelector('.row.active')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 	}
 
+	// VIEW's right column: the picture, or the book's cover, over its details
+	let picture: string | null = $state(null);
+	function setPicture(url: string | null) {
+		if (picture?.startsWith('blob:')) URL.revokeObjectURL(picture);
+		picture = url;
+	}
+
 	// load the right column for the selected item (latest request wins)
 	let previewToken = 0;
 	$effect(() => {
@@ -322,7 +414,23 @@
 		preview = null;
 		previewInfo = null;
 		previewError = '';
+		setPicture(null);
 		if (!entry || view !== 'colm') return;
+		const kind = entry.isDir ? 'folder' : kindOf(entry.name);
+		if (mode === 'view' && (kind === 'image' || kind === 'book')) {
+			// a moment on the item first: running down the list doesn't draw every cover
+			setTimeout(() => {
+				if (token !== previewToken) return;
+				const load: Promise<string | null> =
+					kind === 'image'
+						? files.readFile(entry.path).then(bytes => URL.createObjectURL(new Blob([bytes], { type: imageType(entry.name) })))
+						: coverOf(entry.path, bookFormat(entry.name));
+				load.then(
+					url => (token === previewToken ? setPicture(url) : url?.startsWith('blob:') && URL.revokeObjectURL(url)),
+					() => {},
+				);
+			}, 150);
+		}
 		const load = entry.isDir ? files.list(entry.path) : files.info(entry.path);
 		load.then(
 			result => {
@@ -489,6 +597,9 @@
 
 		const mod = e.metaKey || e.ctrlKey;
 
+		// a book and a video have their own keys (Reader.svelte, Video.svelte)
+		if (reading || video) return;
+
 		if (shown) {
 			// in the text: it's typing, but for Esc (close) and ⌘S
 			if (e.target === textArea) {
@@ -508,6 +619,19 @@
 				e.preventDefault();
 				stepViewer(e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : -1);
 			}
+			return;
+		}
+
+		// PLAY's own keys first (lib/play/Play.svelte): the player, the tabs, the songs and the radio
+		if (mode === 'play' && playPanel?.key(e, e.target === searchInput)) return;
+		if (!browsing) {
+			if (e.code === 'Slash' && !isTyping(e)) {
+				e.preventDefault();
+				searchInput?.focus();
+			} else if (e.target === searchInput && e.key === 'Escape') {
+				query = '';
+				searchInput?.blur();
+			} else if (!isTyping(e) && !mod && !e.altKey) modeKey(e);
 			return;
 		}
 
@@ -543,6 +667,8 @@
 			// a quick look: only what the viewer shows
 			e.preventDefault();
 			if (viewable.includes(current)) show(current);
+		} else if (!mod && !e.altKey && modeKey(e)) {
+			// F / T / V / P: this folder in that mode
 		} else if (e.key === 'ArrowLeft' || (mod && e.key === 'ArrowUp')) {
 			e.preventDefault();
 			back();
@@ -557,7 +683,8 @@
 		} else if (!mod && e.code === 'KeyN') {
 			openNewFolder();
 		} else if (!mod && e.code === 'KeyI') {
-			openInfo();
+			if (mode === 'play') playPanel?.openInfo();
+			else openInfo();
 		} else if (!mod && e.code === 'KeyE') {
 			openActions();
 		} else if (!mod && e.code === 'KeyC') {
@@ -565,6 +692,15 @@
 		} else if (!mod && e.code === 'KeyL') {
 			view = 'list';
 		}
+	}
+
+	/** F / T / V / P: the mode; true when it was one of them */
+	function modeKey(e: KeyboardEvent): boolean {
+		const next = ({ KeyF: 'file', KeyT: 'text', KeyV: 'view', KeyP: 'play' } as Record<string, Mode>)[e.code];
+		if (!next || e.shiftKey) return false;
+		e.preventDefault();
+		setMode(next);
+		return true;
 	}
 
 	// how full the disk is, 0…1, as the line under the search
@@ -578,26 +714,26 @@
 	const readLoad = () => files.load().then(l => (load = l)).catch(() => {});
 
 	onMount(() => {
-		if (viewOnly) {
-			// the file's folder behind it (← → step through its pictures and texts), the file shown
-			navigate(parentOf(viewOnly) ?? viewOnly, nameOf(viewOnly)).then(async () => {
-				const entry = entries.find(e => e.path === viewOnly);
-				if (!entry || !(await show(entry))) {
-					// not one ReFile can show after all: the Mac's app then
-					await files.open(viewOnly);
-					getCurrentWindow().close();
-				}
-			});
-			window.addEventListener('focus', () => reload());
-			return;
-		}
 		readDisk();
 		const diskTimer = setInterval(readDisk, 60_000);
 		readLoad();
 		const loadTimer = setInterval(readLoad, 2000);
-		files.homeDir().then(dir => {
+		files.homeDir().then(async dir => {
 			home = dir;
-			navigate(dir);
+			const path = opened?.path;
+			if (!path) return navigate(dir);
+			// the file's folder, in the file's mode, the file opened in it
+			const its = modeOf(kindOf(nameOf(path)));
+			if (its && !opened?.mode) mode = its;
+			if (mode === 'play') playTab = 'folder';
+			await navigate(parentOf(path) ?? path, nameOf(path));
+			await tick();
+			const entry = entries.find(e => e.path === path);
+			if (!entry || !(await openHere(entry))) {
+				// not one ReFile can show after all: the Mac's app then
+				await files.open(path);
+				if (!entry) getCurrentWindow().close();
+			}
 		});
 		// files may change in other apps while ReFile is in the background
 		const refresh = () => {
@@ -613,9 +749,10 @@
 	});
 
 	const shortcuts = [
+		['F / T / V / P', 'This folder in FILE / TEXT / VIEW / PLAY'],
 		['⌘ N', 'New window'],
 		['↑ / ↓', 'Select'],
-		['→ / Enter', 'Open (a picture or text in a window of its own)'],
+		['→ / Enter', 'Open (from FILE: in a window of its mode)'],
 		['Space', 'A quick look at a picture or text, here'],
 		['⌘ S', 'Save the text (it saves itself too)'],
 		['←', 'Back'],
@@ -630,6 +767,8 @@
 </script>
 
 <svelte:window
+	bind:innerWidth={winWidth}
+	bind:innerHeight={winHeight}
 	onkeydown={handleKeydown}
 	oncontextmenu={e => {
 		// the webview's own menu (Reload / Inspect) is not useful here; text fields keep theirs
@@ -639,12 +778,13 @@
 
 <WindowControls />
 
-<!-- view switch -->
-<button class="side switch switch-colm" class:ink-mark-v={view === 'colm'} onclick={() => (view = 'colm')} title="Columns (C)">COLM</button>
-<button class="side switch switch-list" class:ink-mark-v={view === 'list'} onclick={() => (view = 'list')} title="List (L)">LIST</button>
+<!-- the four modes, in the corners: the one in use inked with a vertical stroke (C / L: columns or a list) -->
+{#each modes as m (m)}
+	<button class="side switch mode-{m}" class:ink-mark-v={mode === m} onclick={() => setMode(m)} title={modeTitles[m]}>{m.toUpperCase()}</button>
+{/each}
 
-<!-- how busy the Mac is: the processor on the left, the memory on the right (← goes back, N makes a folder) -->
-{#if load}
+<!-- how busy the Mac is: the processor on the left, the memory on the right (in PLAY: PREV and NEXT) -->
+{#if load && mode !== 'play'}
 	<div class="gauge gauge-cpu" title="Processor {Math.round(load.cpu * 100)}%">
 		<div class="gauge-used" style="height: {Math.min(load.cpu, 1) * 100}%"></div>
 	</div>
@@ -657,18 +797,17 @@
 	<span class="gauge-number gauge-memory">{Math.round(load.memory * 100)}</span>
 {/if}
 
-<button class="side plain nav-info" onclick={openInfo} title="Info (I)">INFO</button>
-<button class="side plain nav-del" onclick={openDelete} disabled={!current} title="Move to Trash (Backspace)">DEL</button>
+<!-- a small window: the modes in its corners -->
+{#each modes as m (m)}
+	<button class="corner mode-{m}" class:on={mode === m} onclick={() => setMode(m)} title={modeTitles[m]}>{m.toUpperCase()}</button>
+{/each}
 
-<!-- a small window: the view switch where BACK is in a big one (← still goes back) -->
-<button class="corner top-right" onclick={() => (view = view === 'colm' ? 'list' : 'colm')} title={view === 'colm' ? 'List (L)' : 'Columns (C)'}>
-	{view === 'colm' ? 'LIST' : 'COLM'}
-</button>
-<button class="corner bottom-left" onclick={openInfo} title="Info (I)">INFO</button>
-<button class="corner bottom-right" onclick={openNewFolder} title="New folder (N)">NEW</button>
+{#if mode === 'play'}
+	<Play bind:this={playPanel} bind:tab={playTab} bind:query mini={small} toast={showToast} {shortcuts} />
+{/if}
 
-<main class="browser fade-in">
-	<h1 class="title" title={cwd}>{title}</h1>
+<main class="browser fade-in" class:play={mode === 'play'} class:hidden={!browsing}>
+	{#if mode !== 'play'}<h1 class="title" title={cwd}>{title}</h1>{/if}
 
 	{#if view === 'colm'}
 		<div class="column left scroll" bind:this={mainList} use:scrollFade>
@@ -699,6 +838,9 @@
 					<p class="empty">Empty.</p>
 				{/each}
 			{:else if previewInfo}
+				{#if picture}
+					<img class="picture" src={picture} alt={previewInfo.name} onerror={() => setPicture(null)} />
+				{/if}
 				<dl class="details">
 					<dt>Kind</dt><dd>{previewInfo.kind}</dd>
 					<dt>Size</dt><dd>{formatSize(sizeOf(previewInfo))}</dd>
@@ -727,16 +869,7 @@
 		</div>
 	{/if}
 
-	<input
-		bind:this={searchInput}
-		bind:value={query}
-		class="search"
-		type="text"
-		placeholder="Search"
-		title="Search this folder (/)"
-		oninput={() => (selected = 0)}
-	/>
-	{#if disk}
+	{#if disk && mode !== 'play'}
 		<div class="disk" title="{gb(disk.total - disk.free)} of {gb(disk.total)} used, {gb(disk.free)} free">
 			<div class="disk-used" style="width: {diskFull * 100}%"></div>
 		</div>
@@ -745,6 +878,28 @@
 		<span class="disk-number disk-free-number">{Math.round(disk.free / 1e9)}</span>
 	{/if}
 </main>
+
+<!-- the search: under the list; in PLAY, the title (the folder, or what the tab holds) -->
+{#if !(mode === 'play' && small)}
+	<input
+		bind:this={searchInput}
+		bind:value={query}
+		class="search"
+		class:top={mode === 'play'}
+		type="text"
+		placeholder={mode !== 'play' ? 'Search' : playTab === 'folder' ? title : playTab === 'songs' ? 'Search songs' : 'Search stations'}
+		title="Search (/)"
+		oninput={() => (selected = 0)}
+	/>
+{/if}
+
+{#if reading}
+	<Reader book={reading} onclose={() => (reading = null)} />
+{/if}
+
+{#if video}
+	<Video paths={video.paths} start={video.start} onclose={() => (video = null)} />
+{/if}
 
 {#if popup === 'delete' && current}
 	<Popup onclose={closePopup}>
@@ -882,9 +1037,24 @@
 		color: var(--text);
 	}
 
-	/* ── side buttons, placed as in the reference ── */
-	.switch-colm { left: calc(6.25% - 28px); top: calc(6.25% + 8px); }
-	.switch-list { right: calc(6.25% - 28px); top: calc(6.25% + 8px); }
+	/* ── the modes, in the corners ── */
+	.side.mode-file { left: calc(6.25% - 28px); top: calc(6.25% + 8px); }
+	.side.mode-text { right: calc(6.25% - 28px); top: calc(6.25% + 8px); }
+	.side.mode-view { left: calc(6.25% - 28px); bottom: 6.25%; }
+	.side.mode-play { right: calc(6.25% - 28px); bottom: 6.25%; }
+	.corner.mode-file { top: 52px; left: 12px; }
+	.corner.mode-text { top: 12px; right: 12px; }
+	.corner.mode-view { bottom: 12px; left: 12px; }
+	.corner.mode-play { bottom: 12px; right: 12px; }
+
+	/* PLAY's songs and radio, and its mini player: the browser steps aside */
+	.browser.hidden { display: none; }
+	/* in PLAY, between the tabs and the player */
+	.browser.play .scroll {
+		top: calc(6.25% + 64px);
+		bottom: calc(6.25% + 112px);
+	}
+
 	.nav-back { left: calc(6.25% - 28px); top: 50%; transform: translateY(-50%); }
 
 	/* the load lines, where BACK and NEW were: faint, filled from below as far as used (as on ReDesk) */
@@ -957,11 +1127,6 @@
 		background: color-mix(in srgb, var(--text) 75%, transparent);
 		transition: height 600ms ease;
 	}
-	.nav-info { left: calc(6.25% - 28px); bottom: 6.25%; }
-	.nav-del { right: calc(6.25% - 28px); bottom: 6.25%; }
-
-	/* plain buttons sit centred where a box would be */
-	.side.plain { width: 42px; }
 
 	.side:disabled { opacity: 0.3; pointer-events: none; }
 
@@ -1130,7 +1295,8 @@
 
 	/* ── search ── */
 	.search {
-		position: absolute;
+		position: fixed;
+		z-index: 5;
 		left: 50%;
 		bottom: calc(6.25% - 6px);
 		transform: translateX(-50%);
@@ -1143,6 +1309,12 @@
 		line-height: 32px;
 		text-align: center;
 		color: var(--text);
+	}
+
+	/* PLAY: the search is the title */
+	.search.top {
+		top: 28px;
+		bottom: auto;
 	}
 
 	.search::placeholder {
@@ -1300,6 +1472,19 @@
 		white-space: nowrap;
 		color: var(--muted);
 		opacity: 0.7;
+	}
+
+	/* VIEW: the picture, or the book's cover, over its details */
+	.picture {
+		display: block;
+		max-width: 100%;
+		max-height: 52vh;
+		margin-bottom: 28px;
+		border-radius: 10px;
+		box-shadow: 0 1px 12px rgba(0, 0, 0, 0.08);
+		object-fit: contain;
+		flex-shrink: 0;
+		align-self: flex-start;
 	}
 
 	/* the small window's corner; the big one has the side button */

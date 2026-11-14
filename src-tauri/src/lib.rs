@@ -1,8 +1,12 @@
-//! ReFile: a quiet file browser in the ReNote style.
-//! Rust reads and changes the filesystem; the Svelte UI (src/) calls these
-//! commands through src/lib/files.ts.
+//! ReFile: a quiet file browser in the ReNote style, in four modes: FILE (everything), TEXT, VIEW
+//! (pictures and books: books.rs, comic.rs, what ReBook was) and PLAY (music and videos: play/, what
+//! RePlay was). Rust reads and changes the filesystem; the Svelte UI (src/) calls these commands
+//! through src/lib/files.ts, src/lib/play/music.ts and src/lib/view/books.ts.
 
+mod books;
+mod comic;
 mod fs;
+mod play;
 
 use fs::{Entry, Info};
 use std::path::PathBuf;
@@ -112,8 +116,7 @@ fn move_to_trash(path: String) -> CmdResult<()> {
     fs::move_to_trash(&PathBuf::from(path))
 }
 
-/// Opens a file (or app) with its default macOS application.
-// ── the viewer: pictures and text open inside ReFile, music in RePlay ──
+// ── the viewer: pictures and text open inside ReFile ──
 
 /// A picture's bytes, handed to the UI as they are (an ArrayBuffer there, no base64).
 #[tauri::command]
@@ -162,16 +165,7 @@ fn write_text(path: String, text: String) -> CmdResult<()> {
     std::fs::write(&path, text).map_err(|e| e.to_string())
 }
 
-/// Music and videos go to RePlay (which plays their folder from them); without RePlay, to the Mac's default.
-#[tauri::command]
-fn open_in_replay(app: tauri::AppHandle, path: String) -> CmdResult<()> {
-    let sent = std::process::Command::new("open")
-        .args(["-b", "com.artursavytskyi.resound", &path])
-        .status()
-        .is_ok_and(|s| s.success());
-    if sent { Ok(()) } else { open_path(app, path) }
-}
-
+/// Opens a file (or app) with its default macOS application.
 #[tauri::command]
 fn open_path(app: tauri::AppHandle, path: String) -> CmdResult<()> {
     app.opener().open_path(path, None::<&str>).map_err(|e| e.to_string())
@@ -521,10 +515,10 @@ static WINDOW_COUNT: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicU
 
 /// ⌘N: another window, as the first one is (tauri.conf.json): the size of the one in front, a little
 /// lower and to the right of it. It fades in once its interface has drawn itself (window_ready).
-/// With `view` (a picture or a text opened): a window showing just that file (App.svelte reads
-/// `window.__refileView`), named after it.
+/// With `open` (a file opened in FILE): a window in that file's mode (`mode`: text, view or play),
+/// showing it (App.svelte reads `window.__refileOpen`), named after it.
 #[tauri::command]
-async fn new_window(app: tauri::AppHandle, view: Option<String>) -> Result<(), String> {
+async fn new_window(app: tauri::AppHandle, open: Option<String>, mode: Option<String>) -> Result<(), String> {
     use tauri::Manager;
     let n = WINDOW_COUNT.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
     let mut config = app.config().app.windows.first().cloned().ok_or("No window to copy")?;
@@ -545,10 +539,13 @@ async fn new_window(app: tauri::AppHandle, view: Option<String>) -> Result<(), S
     if let Some((x, y)) = place {
         builder = builder.position(x, y);
     }
-    if let Some(path) = view {
-        let name = std::path::Path::new(&path).file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-        let json = serde_json::to_string(&path).map_err(|e| e.to_string())?;
-        builder = builder.title(name).initialization_script(format!("window.__refileView = {json};"));
+    if open.is_some() || mode.is_some() {
+        if let Some(path) = &open {
+            let name = std::path::Path::new(path).file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+            builder = builder.title(name);
+        }
+        let json = serde_json::json!({ "path": open, "mode": mode });
+        builder = builder.initialization_script(format!("window.__refileOpen = {json};"));
     }
     let window = builder.build().map_err(|e| e.to_string())?;
     #[cfg(target_os = "macos")]
@@ -562,7 +559,14 @@ pub fn run() {
     tauri::Builder::default()
         .on_window_event(fade_on_close)
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
+        .register_asynchronous_uri_scheme_protocol("refile", |_ctx, request, responder| {
+            let uri = request.uri().clone();
+            // comic pages read off the main thread
+            std::thread::spawn(move || responder.respond(books::serve(&uri)));
+        })
         .setup(|_app| {
+            play::setup(_app)?;
             #[cfg(target_os = "macos")]
             fade_windows_in_and_out();
             #[cfg(target_os = "macos")]
@@ -596,8 +600,44 @@ pub fn run() {
             read_file,
             read_text,
             write_text,
-            open_in_replay,
+            books::comic_pages,
+            play::play_files,
+            play::pause_music,
+            play::music_folder,
+            play::set_music_folder,
+            play::rescan,
+            play::tracks,
+            play::play,
+            play::toggle_play,
+            play::next,
+            play::previous,
+            play::seek,
+            play::set_shuffle,
+            play::cycle_repeat,
+            play::play_next,
+            play::add_to_queue,
+            play::queue_files,
+            play::player_status,
+            play::upcoming,
+            play::radio_genres,
+            play::radio_stations,
+            play::radio_search,
+            play::radio_favorites,
+            play::set_radio_favorite,
+            play::play_station,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running ReFile");
+        .build(tauri::generate_context!())
+        .expect("error while running ReFile")
+        .run(|_app, _event| {
+            // a file opened with ReFile (Open With in Finder): a window in its mode, showing it
+            #[cfg(target_os = "macos")]
+            if let tauri::RunEvent::Opened { urls } = _event {
+                for path in urls.iter().filter_map(|u| u.to_file_path().ok()) {
+                    let app = _app.clone();
+                    tauri::async_runtime::spawn(async move {
+                        let _ = new_window(app, Some(path.to_string_lossy().into_owned()), None).await;
+                    });
+                }
+            }
+        });
 }
