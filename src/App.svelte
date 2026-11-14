@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
+	import { invoke } from '@tauri-apps/api/core';
+	import { getCurrentWindow } from '@tauri-apps/api/window';
 	import WindowControls from './lib/WindowControls.svelte';
 	import Popup from './lib/Popup.svelte';
 	import { scrollFade } from './lib/scrollFade';
@@ -9,6 +11,9 @@
 	type View = 'colm' | 'list';
 	type PopupKind = 'none' | 'delete' | 'new' | 'info' | 'actions' | 'rename';
 	type ActionId = 'open' | 'rename' | 'duplicate' | 'compress' | 'copy' | 'reveal' | 'info' | 'trash';
+
+	// a window of its own for one picture or text (opened from another window: lib.rs, new_window)
+	const viewOnly: string | undefined = (window as unknown as { __refileView?: string }).__refileView;
 
 	let view: View = $state('colm');
 	let cwd = $state('');
@@ -218,8 +223,16 @@
 		if (entry.isDir) return navigate(entry.path);
 		const kind = kindOf(entry.name);
 		if (kind === 'audio' || kind === 'video') return files.openInRePlay(entry.path);
-		if ((kind === 'image' || kind === 'text') && (await show(entry))) return;
+		// pictures and texts in a window of their own
+		if (kind === 'image' || kind === 'text') return invoke('new_window', { view: entry.path });
 		await files.open(entry.path);
+	}
+
+	/** Esc, CLOSE: the viewer goes; a viewer's own window closes (its text saved first). */
+	async function leaveViewer() {
+		if (!viewOnly) return closeViewer();
+		await save();
+		getCurrentWindow().close();
 	}
 
 	/** Puts `entry` in the viewer; false when it can't be shown (not text after all, too big…). */
@@ -481,7 +494,7 @@
 			if (e.target === textArea) {
 				if (e.key === 'Escape') {
 					e.preventDefault();
-					closeViewer();
+					leaveViewer();
 				} else if (mod && e.key === 's') {
 					e.preventDefault();
 					save();
@@ -490,7 +503,7 @@
 			}
 			if (e.key === 'Escape' || e.key === ' ') {
 				e.preventDefault();
-				closeViewer();
+				leaveViewer();
 			} else if (e.key.startsWith('Arrow')) {
 				e.preventDefault();
 				stepViewer(e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : -1);
@@ -565,6 +578,19 @@
 	const readLoad = () => files.load().then(l => (load = l)).catch(() => {});
 
 	onMount(() => {
+		if (viewOnly) {
+			// the file's folder behind it (← → step through its pictures and texts), the file shown
+			navigate(parentOf(viewOnly) ?? viewOnly, nameOf(viewOnly)).then(async () => {
+				const entry = entries.find(e => e.path === viewOnly);
+				if (!entry || !(await show(entry))) {
+					// not one ReFile can show after all: the Mac's app then
+					await files.open(viewOnly);
+					getCurrentWindow().close();
+				}
+			});
+			window.addEventListener('focus', () => reload());
+			return;
+		}
 		readDisk();
 		const diskTimer = setInterval(readDisk, 60_000);
 		readLoad();
@@ -589,8 +615,8 @@
 	const shortcuts = [
 		['⌘ N', 'New window'],
 		['↑ / ↓', 'Select'],
-		['→ / Enter', 'Open'],
-		['Space', 'Look at a picture or text'],
+		['→ / Enter', 'Open (a picture or text in a window of its own)'],
+		['Space', 'A quick look at a picture or text, here'],
 		['⌘ S', 'Save the text (it saves itself too)'],
 		['←', 'Back'],
 		['/', 'Search'],
@@ -807,8 +833,7 @@
 					onerror={() => {
 						// a picture WebKit can't draw: the Mac's app then
 						const path = shown!.entry.path;
-						closeViewer();
-						files.open(path);
+						files.open(path).finally(leaveViewer);
 					}}
 				/>
 			</div>
@@ -825,8 +850,8 @@
 			{#if viewable.length > 1}
 				· {viewable.findIndex(e => e.path === shown!.entry.path) + 1} / {viewable.length}{/if}
 		</p>
-		<button class="side boxed nav-back" onclick={closeViewer} title="Close (Esc)">CLOSE</button>
-		<button class="viewer-close" onclick={closeViewer} title="Close (Esc)">CLOSE</button>
+		<button class="side boxed nav-back" onclick={leaveViewer} title="Close (Esc)">CLOSE</button>
+		<button class="viewer-close" onclick={leaveViewer} title="Close (Esc)">CLOSE</button>
 	</div>
 {/if}
 

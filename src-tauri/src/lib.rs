@@ -518,8 +518,10 @@ static WINDOW_COUNT: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicU
 
 /// ⌘N: another window, as the first one is (tauri.conf.json): the size of the one in front, a little
 /// lower and to the right of it. It fades in once its interface has drawn itself (window_ready).
+/// With `view` (a picture or a text opened): a window showing just that file (App.svelte reads
+/// `window.__refileView`), named after it.
 #[tauri::command]
-async fn new_window(app: tauri::AppHandle) -> Result<(), String> {
+async fn new_window(app: tauri::AppHandle, view: Option<String>) -> Result<(), String> {
     use tauri::Manager;
     let n = WINDOW_COUNT.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
     let mut config = app.config().app.windows.first().cloned().ok_or("No window to copy")?;
@@ -539,6 +541,11 @@ async fn new_window(app: tauri::AppHandle) -> Result<(), String> {
     let mut builder = tauri::WebviewWindowBuilder::from_config(&app, &config).map_err(|e| e.to_string())?;
     if let Some((x, y)) = place {
         builder = builder.position(x, y);
+    }
+    if let Some(path) = view {
+        let name = std::path::Path::new(&path).file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+        let json = serde_json::to_string(&path).map_err(|e| e.to_string())?;
+        builder = builder.title(name).initialization_script(format!("window.__refileView = {json};"));
     }
     let window = builder.build().map_err(|e| e.to_string())?;
     #[cfg(target_os = "macos")]
