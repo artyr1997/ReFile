@@ -1338,10 +1338,13 @@
 			right: 12px;
 			background: transparent;
 			border: none;
-			padding: 0.3em 0.4em;
+			padding: 0.4em 0.3em 0.1em;
 			font-family: 'Noto Sans JP', sans-serif;
 			font-size: 12px;
 			letter-spacing: 0.3em;
+			writing-mode: vertical-rl;
+			text-orientation: upright;
+			line-height: 1;
 			color: var(--text);
 			opacity: 0.6;
 			cursor: pointer;
