@@ -62,13 +62,13 @@
 		scrollSelectedIntoView();
 	}
 
-	// a small window: PLAY is the mini player there
+	// a tiny window (the mini player's size, M): PLAY is the mini player there; a small one keeps its list
 	let winWidth = $state(window.innerWidth);
 	let winHeight = $state(window.innerHeight);
-	let small = $derived(winWidth < 760 || winHeight < 560);
+	let tiny = $derived(winWidth < 520 || winHeight < 420);
 	let playPanel: ReturnType<typeof Play> | undefined = $state();
 	// the browser shows, but in PLAY's songs and radio, and its mini player
-	let browsing = $derived(mode !== 'play' || (playTab === 'folder' && !small));
+	let browsing = $derived(mode !== 'play' || (playTab === 'folder' && !tiny));
 
 	// VIEW: a book being read; PLAY: videos being shown
 	let reading: Book | null = $state(null);
@@ -841,7 +841,7 @@
 {/each}
 
 {#if mode === 'play'}
-	<Play bind:this={playPanel} bind:tab={playTab} bind:query mini={small} toast={showToast} {shortcuts} />
+	<Play bind:this={playPanel} bind:tab={playTab} bind:query mini={tiny} toast={showToast} {shortcuts} />
 {/if}
 
 <main class="browser fade-in" class:play={mode === 'play'} class:hidden={!browsing}>
@@ -918,7 +918,7 @@
 </main>
 
 <!-- the search: under the list; in PLAY, the title (the folder, or what the tab holds) -->
-{#if !(mode === 'play' && small)}
+{#if !(mode === 'play' && tiny)}
 	<input
 		bind:this={searchInput}
 		bind:value={query}
@@ -1419,6 +1419,13 @@
 			width: calc(100% - 200px);
 			font-size: 18px;
 			transition: opacity 200ms ease;
+		}
+
+		/* PLAY: the search at the top, the list between the tabs and the player */
+		.search.top { top: 12px; }
+		.browser.play .scroll {
+			top: 76px;
+			bottom: 128px;
 		}
 
 		/* no disk line in a small window */

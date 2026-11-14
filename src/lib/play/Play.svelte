@@ -21,7 +21,7 @@
 	}: {
 		tab: Tab;
 		query: string;
-		/** a small window: the mini player */
+		/** a tiny window: the mini player */
 		mini: boolean;
 		toast: (text: string) => void;
 		/** ReFile's own keys, for INFO */
@@ -856,6 +856,33 @@
 	}
 
 	.mini-btn:hover { opacity: 1; }
+
+	/* ── a small window (not yet the mini player's): the same, closer to the edges ── */
+	@media (max-width: 759px), (max-height: 559px) {
+		.tabs { top: 46px; gap: 1.4rem; }
+
+		.songs,
+		.radio {
+			top: 76px;
+			bottom: 128px;
+			left: 40px;
+			right: 40px;
+		}
+
+		.radio { grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); column-gap: 20px; }
+		.station-row { grid-template-columns: minmax(0, 1fr) 70px; }
+		.station-row .kind { display: none; }
+		.song-row { grid-template-columns: minmax(0, 1fr) 56px; }
+		.song-row .cell:not(.time) { display: none; }
+
+		.player {
+			bottom: 14px;
+			width: calc(100% - 80px);
+			gap: 6px;
+		}
+
+		.now { font-size: 18px; }
+	}
 
 	/* ── SCAN, as ReFile's toast ── */
 	.toast {
