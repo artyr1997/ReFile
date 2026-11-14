@@ -68,6 +68,14 @@ fn list_dir(path: String) -> CmdResult<Vec<Entry>> {
     fs::list_dir(&PathBuf::from(path))
 }
 
+/// Every file inside a folder, at any depth (the "all inside" window); off the main thread.
+#[tauri::command]
+async fn list_tree(path: String) -> CmdResult<Vec<Entry>> {
+    tauri::async_runtime::spawn_blocking(move || fs::list_tree(&PathBuf::from(path), 50_000))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
 /// A folder's size, all that is inside it; off the main thread, as a big one takes a while.
 #[tauri::command]
 async fn folder_size(path: String) -> CmdResult<u64> {
@@ -515,10 +523,11 @@ static WINDOW_COUNT: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicU
 
 /// ⌘N: another window, as the first one is (tauri.conf.json): the size of the one in front, a little
 /// lower and to the right of it. It fades in once its interface has drawn itself (window_ready).
-/// With `open` (a file opened in FILE): a window in that file's mode (`mode`: text, view or play),
-/// showing it (App.svelte reads `window.__refileOpen`), named after it.
+/// With `open` (a file opened): a window in that file's mode (`mode`: text, view or play), showing it
+/// (App.svelte reads `window.__refileOpen`), named after it. With `tree` (⇧Enter, ⇧F / T / V / P on a
+/// folder): every file inside that folder, at any depth, in `mode`.
 #[tauri::command]
-async fn new_window(app: tauri::AppHandle, open: Option<String>, mode: Option<String>) -> Result<(), String> {
+async fn new_window(app: tauri::AppHandle, open: Option<String>, mode: Option<String>, tree: Option<String>) -> Result<(), String> {
     use tauri::Manager;
     let n = WINDOW_COUNT.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
     let mut config = app.config().app.windows.first().cloned().ok_or("No window to copy")?;
@@ -539,12 +548,12 @@ async fn new_window(app: tauri::AppHandle, open: Option<String>, mode: Option<St
     if let Some((x, y)) = place {
         builder = builder.position(x, y);
     }
-    if open.is_some() || mode.is_some() {
-        if let Some(path) = &open {
+    if open.is_some() || mode.is_some() || tree.is_some() {
+        if let Some(path) = open.as_ref().or(tree.as_ref()) {
             let name = std::path::Path::new(path).file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
             builder = builder.title(name);
         }
-        let json = serde_json::json!({ "path": open, "mode": mode });
+        let json = serde_json::json!({ "path": open, "mode": mode, "tree": tree });
         builder = builder.initialization_script(format!("window.__refileOpen = {json};"));
     }
     let window = builder.build().map_err(|e| e.to_string())?;
@@ -588,6 +597,7 @@ pub fn run() {
             disk_space,
             load,
             list_dir,
+            list_tree,
             item_info,
             folder_size,
             create_folder,
@@ -635,7 +645,7 @@ pub fn run() {
                 for path in urls.iter().filter_map(|u| u.to_file_path().ok()) {
                     let app = _app.clone();
                     tauri::async_runtime::spawn(async move {
-                        let _ = new_window(app, Some(path.to_string_lossy().into_owned()), None).await;
+                        let _ = new_window(app, Some(path.to_string_lossy().into_owned()), None, None).await;
                     });
                 }
             }

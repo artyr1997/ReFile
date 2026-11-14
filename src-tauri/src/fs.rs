@@ -69,6 +69,40 @@ fn name_of(path: &Path) -> String {
         .unwrap_or_else(|| path.to_string_lossy().into_owned())
 }
 
+/// Every file in `root` and the folders inside it, at any depth (hidden ones and apps' insides left
+/// out), the first `limit` found: the "all inside" window (⇧Enter, ⇧F / T / V / P).
+pub fn list_tree(root: &Path, limit: usize) -> Result<Vec<Entry>> {
+    if !root.is_dir() {
+        return Err(format!("“{}” is not a folder", name_of(root)));
+    }
+    let mut walk = walkdir::WalkDir::new(root).min_depth(1).into_iter();
+    let mut out = Vec::new();
+    while let Some(item) = walk.next() {
+        let Ok(item) = item else { continue };
+        if is_hidden(&item.file_name().to_string_lossy()) {
+            if item.file_type().is_dir() {
+                walk.skip_current_dir();
+            }
+            continue;
+        }
+        let bundle = is_bundle(item.path());
+        if item.file_type().is_dir() {
+            if !bundle {
+                continue;
+            }
+            // an app is one file: its insides aren't walked
+            walk.skip_current_dir();
+        }
+        if let Some(e) = entry(item.into_path()) {
+            out.push(e);
+            if out.len() >= limit {
+                break;
+            }
+        }
+    }
+    Ok(out)
+}
+
 fn entry(path: PathBuf) -> Option<Entry> {
     let meta = metadata(&path)?;
     let is_dir = meta.is_dir() && !is_bundle(&path);
@@ -304,6 +338,22 @@ pub fn move_to_trash(path: &Path) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn tree_lists_files_at_any_depth() {
+        let root = std::env::temp_dir().join(format!("refile-tree-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("a/b")).unwrap();
+        fs::create_dir_all(root.join(".hidden")).unwrap();
+        fs::create_dir_all(root.join("X.app/Contents")).unwrap();
+        for f in ["one.mp3", "a/two.mp3", "a/b/three.txt", ".hidden/no.mp3", "X.app/Contents/no.txt", ".no"] {
+            fs::write(root.join(f), b"x").unwrap();
+        }
+        let mut names: Vec<String> = list_tree(&root, 100).unwrap().into_iter().map(|e| e.name).collect();
+        names.sort();
+        assert_eq!(names, vec!["X.app", "one.mp3", "three.txt", "two.mp3"]);
+        fs::remove_dir_all(&root).unwrap();
+    }
 
     fn temp_dir(tag: &str) -> PathBuf {
         let dir = std::env::temp_dir().join(format!("refile-test-{tag}-{}", std::process::id()));

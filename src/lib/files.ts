@@ -28,6 +28,8 @@ export const files = {
 	diskSpace: () => invoke<{ total: number; free: number }>('disk_space'),
 	load: () => invoke<{ cpu: number; memory: number }>('load'),
 	list: (path: string) => invoke<Entry[]>('list_dir', { path }),
+	/** every file inside, at any depth */
+	tree: (path: string) => invoke<Entry[]>('list_tree', { path }),
 	info: (path: string) => invoke<Info>('item_info', { path }),
 	folderSize: (path: string) => invoke<number>('folder_size', { path }),
 	createFolder: (parent: string, name: string) => invoke<string>('create_folder', { parent, name }),

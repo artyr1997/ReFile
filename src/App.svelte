@@ -19,7 +19,10 @@
 	type ActionId = 'open' | 'rename' | 'duplicate' | 'compress' | 'copy' | 'reveal' | 'info' | 'trash';
 
 	// a window opened for a file (from FILE, or Open With in Finder: lib.rs, new_window): its mode, the file shown
-	const opened = (window as unknown as { __refileOpen?: { path: string | null; mode: Mode | null } }).__refileOpen;
+	// or for every file inside a folder, at any depth (⇧Enter, ⇧F / T / V / P): `tree`
+	const opened = (window as unknown as { __refileOpen?: { path: string | null; mode: Mode | null; tree?: string | null } }).__refileOpen;
+	/** the folder whose every file is listed here, at any depth (an "all inside" window); null: just the folder's own */
+	let flat: string | null = $state(null);
 
 	// ── the four modes: FILE everything, TEXT texts, VIEW pictures and books, PLAY music and videos ──
 	function readSaved<T extends string>(key: string, allowed: readonly T[], fallback: T): T {
@@ -183,10 +186,10 @@
 	let current: Entry | undefined = $derived(visible[selected]);
 	// what the viewer steps through: the pictures (VIEW), the texts (TEXT), both (FILE's quick look)
 	let viewable = $derived(visible.filter(e => !e.isDir && (kindOf(e.name) === 'image' || kindOf(e.name) === 'text')));
-	let title = $derived(cwd ? nameOf(cwd) : '');
+	let title = $derived(cwd ? (flat ? `${nameOf(cwd)} · all inside` : nameOf(cwd)) : '');
 	// the home folder is the top of ReFile: BACK disappears there
 	let home = $state('');
-	let canGoBack = $derived(cwd !== '' && cwd !== home && parentOf(cwd) !== null);
+	let canGoBack = $derived(flat !== null || (cwd !== '' && cwd !== home && parentOf(cwd) !== null));
 
 	// ── navigation ──
 
@@ -194,6 +197,7 @@
 	async function navigate(path: string, selectName?: string) {
 		try {
 			const list = await files.list(path);
+			flat = null;
 			cwd = path;
 			entries = list;
 			listError = '';
@@ -204,6 +208,27 @@
 		} catch (e) {
 			listError = `No access to “${nameOf(path)}”.`;
 		}
+	}
+
+	/** Every file inside `root`, at any depth, as one list (an "all inside" window). */
+	async function showTree(root: string) {
+		try {
+			const list = await files.tree(root);
+			flat = root;
+			cwd = root;
+			entries = list;
+			listError = '';
+			query = '';
+			selected = 0;
+		} catch (e) {
+			listError = String(e);
+		}
+	}
+
+	/** ⇧Enter, ⇧F / T / V / P: the folder selected (or this one) in a new window, everything inside it at any depth, in `m` */
+	function openTree(m: Mode) {
+		const root = current?.isDir ? current.path : cwd;
+		if (root) invoke('new_window', { tree: root, mode: m });
 	}
 
 	// ── folders' sizes: measured in the background, two at a time, the folder in view first ──
@@ -255,7 +280,7 @@
 		try {
 			// the folders here measured again: something in them may have changed
 			for (const e of entries) delete sizes[e.path];
-			entries = await files.list(cwd);
+			entries = flat ? await files.tree(flat) : await files.list(cwd);
 			listError = '';
 			const idx = selectName ? visible.findIndex(e => e.name === selectName) : -1;
 			selected = idx >= 0 ? idx : Math.min(selected, Math.max(visible.length - 1, 0));
@@ -266,6 +291,8 @@
 
 	function back() {
 		if (!canGoBack) return;
+		// out of "all inside": the folder itself
+		if (flat) return navigate(flat);
 		const parent = parentOf(cwd);
 		if (parent) navigate(parent, nameOf(cwd));
 	}
@@ -279,7 +306,7 @@
 		if (entry.isDir) return navigate(entry.path);
 		const its = modeOf(kindOf(entry.name));
 		if (!its) return files.open(entry.path);
-		if (!opened?.path) return invoke('new_window', { open: entry.path, mode: its });
+		if (!opened?.path && !flat) return invoke('new_window', { open: entry.path, mode: its });
 		await openHere(entry);
 	}
 
@@ -651,6 +678,9 @@
 		} else if (e.ctrlKey && e.metaKey && !e.altKey && /^Digit[1-4]$/.test(e.code)) {
 			e.preventDefault();
 			sortBy(sortKeys[Number(e.code.slice(5)) - 1]);
+		} else if (e.key === 'Enter' && e.shiftKey) {
+			e.preventDefault();
+			openTree(mode);
 		} else if (e.key === 'Enter' || (mod && e.key === 'o')) {
 			e.preventDefault();
 			openEntry();
@@ -688,9 +718,11 @@
 	/** F / T / V / P: the mode; true when it was one of them */
 	function modeKey(e: KeyboardEvent): boolean {
 		const next = ({ KeyF: 'file', KeyT: 'text', KeyV: 'view', KeyP: 'play' } as Record<string, Mode>)[e.code];
-		if (!next || e.shiftKey) return false;
+		if (!next) return false;
 		e.preventDefault();
-		setMode(next);
+		// with ⇧: the folder, all inside it, in a new window in that mode
+		if (e.shiftKey) openTree(next);
+		else setMode(next);
 		return true;
 	}
 
@@ -711,6 +743,7 @@
 		const loadTimer = setInterval(readLoad, 2000);
 		files.homeDir().then(async dir => {
 			home = dir;
+			if (opened?.tree) return showTree(opened.tree);
 			const path = opened?.path;
 			if (!path) return navigate(dir);
 			// the file's folder, in the file's mode, the file opened in it
@@ -741,6 +774,7 @@
 
 	const shortcuts = [
 		['F / T / V / P', 'This folder in FILE / TEXT / VIEW / PLAY'],
+		['⇧ Enter, ⇧ F / T / V / P', 'The folder selected, all inside it (at any depth), in a new window'],
 		['⌘ N', 'New window'],
 		['↑ / ↓', 'Select'],
 		['→ / Enter', 'Open (a file: in a new window, in its mode)'],
