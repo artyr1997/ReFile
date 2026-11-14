@@ -23,6 +23,10 @@
 	const opened = (window as unknown as { __refileOpen?: { path: string | null; mode: Mode | null; tree?: string | null } }).__refileOpen;
 	/** the folder whose every file is listed here, at any depth (an "all inside" window); null: just the folder's own */
 	let flat: string | null = $state(null);
+	// a window opened for a file or for all inside a folder keeps to it: its mode stays, and nothing
+	// above its folder (the file's, or the one it shows all of) can be reached
+	const locked = !!opened && !!(opened.path || opened.tree);
+	let lockRoot = $state('');
 
 	// ── the four modes: FILE everything, TEXT texts, VIEW pictures and books, PLAY music and videos ──
 	function readSaved<T extends string>(key: string, allowed: readonly T[], fallback: T): T {
@@ -48,7 +52,7 @@
 	};
 	/** F / T / V / P, or a corner: this folder in that mode, the selection kept where it can be */
 	function setMode(next: Mode) {
-		if (next === mode) return;
+		if (next === mode || locked) return;
 		const keep = current?.path;
 		closeViewer();
 		mode = next;
@@ -189,7 +193,11 @@
 	let title = $derived(cwd ? (flat ? `${nameOf(cwd)} · all inside` : nameOf(cwd)) : '');
 	// the home folder is the top of ReFile: BACK disappears there
 	let home = $state('');
-	let canGoBack = $derived(flat !== null || (cwd !== '' && cwd !== home && parentOf(cwd) !== null));
+	let canGoBack = $derived(
+		locked
+			? flat === null && cwd !== lockRoot && cwd.startsWith(lockRoot.replace(/\/$/, '') + '/')
+			: flat !== null || (cwd !== '' && cwd !== home && parentOf(cwd) !== null),
+	);
 
 	// ── navigation ──
 
@@ -723,6 +731,7 @@
 		// with ⇧: the folder, all inside it, in a new window in that mode
 		if (e.shiftKey) openTree(next);
 		else setMode(next);
+		// (a locked window keeps its mode: setMode does nothing there)
 		return true;
 	}
 
@@ -743,9 +752,13 @@
 		const loadTimer = setInterval(readLoad, 2000);
 		files.homeDir().then(async dir => {
 			home = dir;
-			if (opened?.tree) return showTree(opened.tree);
+			if (opened?.tree) {
+				lockRoot = opened.tree;
+				return showTree(opened.tree);
+			}
 			const path = opened?.path;
 			if (!path) return navigate(dir);
+			lockRoot = parentOf(path) ?? path;
 			// the file's folder, in the file's mode, the file opened in it
 			const its = modeOf(kindOf(nameOf(path)));
 			if (its && !opened?.mode) mode = its;
@@ -804,7 +817,7 @@
 <WindowControls />
 
 <!-- the four modes, in the corners: the one in use inked with a vertical stroke (C / L: columns or a list) -->
-{#each modes as m (m)}
+{#each locked ? [mode] : modes as m (m)}
 	<button class="side switch mode-{m}" class:ink-mark-v={mode === m} onclick={() => setMode(m)} title={modeTitles[m]}>{m.toUpperCase()}</button>
 {/each}
 
@@ -823,7 +836,7 @@
 {/if}
 
 <!-- a small window: the modes in its corners -->
-{#each modes as m (m)}
+{#each locked ? [mode] : modes as m (m)}
 	<button class="corner mode-{m}" class:on={mode === m} onclick={() => setMode(m)} title={modeTitles[m]}>{m.toUpperCase()}</button>
 {/each}
 

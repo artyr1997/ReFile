@@ -7,7 +7,9 @@ Four modes, one in each corner (and **F / T / V / P**: this folder in that mode)
 a file opened (Enter, a double click), in any mode, goes to a new window of its own in its mode, named after it
 (music too: that window plays it); in that window the folder's others open there.
 **⇧Enter** (or **⇧F / ⇧T / ⇧V / ⇧P**, for another mode) opens the folder selected (or this one) in a new window,
-every file inside it at any depth in one list, in that mode: ⇧P on Music, all its music; ← goes to the folder itself.
+every file inside it at any depth in one list, in that mode: ⇧P on Music, all its music.
+Those new windows keep to what they were opened for: their mode stays (only its button shows), and
+nothing above their folder can be reached (the folders inside a file's folder can).
 
 - **FILE**: everything. COLM / LIST (C / L): a column view (folder + preview of the selected item) or a list with dates and sizes; ← goes to the parent folder, N makes a new one, Backspace moves to the Trash, I shows details and the keys.
 - **TEXT**: only texts (code, notes, logs, anything with text in it); Enter opens one, written in place, saving itself; ← → step through the folder's others.
