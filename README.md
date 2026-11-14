@@ -4,7 +4,8 @@ A quiet file browser for macOS in the style of ReNote. Rust (Tauri) works with t
 filesystem; the interface is Svelte.
 
 Four modes, one in each corner (and **F / T / V / P**: this folder in that mode). A window keeps its mode;
-a file opened in FILE (Enter, a double click) goes to a window of its own in its mode, named after it.
+a file opened (Enter, a double click), in any mode, goes to a new window of its own in its mode, named after it
+(music too: that window plays it); in that window the folder's others open there.
 
 - **FILE**: everything. COLM / LIST (C / L): a column view (folder + preview of the selected item) or a list with dates and sizes; ← goes to the parent folder, N makes a new one, Backspace moves to the Trash, I shows details and the keys.
 - **TEXT**: only texts (code, notes, logs, anything with text in it); Enter opens one, written in place, saving itself; ← → step through the folder's others.

@@ -271,24 +271,15 @@
 	}
 
 	/**
-	 * Folders open in place. A file opened in FILE goes to a window of its own, in its mode (music just
-	 * plays, this window turning to PLAY); in a mode, it opens here. What isn't ReFile's opens in the Mac's app.
+	 * Folders open in place. A file goes to a new window of its own, in its mode, named after it; in a
+	 * window opened for a file, the folder's others open there. What isn't ReFile's opens in the Mac's app.
 	 */
 	async function openEntry(entry: Entry | undefined = current) {
 		if (!entry) return;
 		if (entry.isDir) return navigate(entry.path);
-		const kind = kindOf(entry.name);
-		const its = modeOf(kind);
+		const its = modeOf(kindOf(entry.name));
 		if (!its) return files.open(entry.path);
-		if (mode === 'file') {
-			if (kind === 'audio') {
-				mode = 'play';
-				playTab = 'folder';
-				await tick();
-				return openHere(entry);
-			}
-			return invoke('new_window', { open: entry.path, mode: its });
-		}
+		if (!opened?.path) return invoke('new_window', { open: entry.path, mode: its });
 		await openHere(entry);
 	}
 
@@ -752,7 +743,7 @@
 		['F / T / V / P', 'This folder in FILE / TEXT / VIEW / PLAY'],
 		['⌘ N', 'New window'],
 		['↑ / ↓', 'Select'],
-		['→ / Enter', 'Open (from FILE: in a window of its mode)'],
+		['→ / Enter', 'Open (a file: in a new window, in its mode)'],
 		['Space', 'A quick look at a picture or text, here'],
 		['⌘ S', 'Save the text (it saves itself too)'],
 		['←', 'Back'],
