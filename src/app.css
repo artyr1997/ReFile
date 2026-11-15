@@ -292,3 +292,15 @@ input:focus::placeholder {
 }
 
 
+
+/* VIEW's pages (← 7 / 180 →) and the viewer's foot (TEXT, pictures): only in the window in use */
+.reader .pager,
+.viewer .view-foot {
+	transition: opacity 150ms ease;
+}
+
+html.blurred .reader .pager,
+html.blurred .viewer .view-foot {
+	opacity: 0;
+	pointer-events: none;
+}
