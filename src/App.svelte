@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { onMount, tick } from 'svelte';
-	import { invoke } from '@tauri-apps/api/core';
+	import { onMount, tick, untrack } from 'svelte';
+	import { invoke, convertFileSrc } from '@tauri-apps/api/core';
 	import { getCurrentWindow } from '@tauri-apps/api/window';
 	import WindowControls from './lib/WindowControls.svelte';
 	import Popup from './lib/Popup.svelte';
@@ -8,8 +8,8 @@
 	import Play from './lib/play/Play.svelte';
 	import Video from './lib/play/Video.svelte';
 	import Reader from './lib/view/Reader.svelte';
-	import { coverOf } from './lib/view/formats';
-	import type { Book } from './lib/view/books';
+	import { cachedCover } from './lib/view/formats';
+	import { placeOf, type Book } from './lib/view/books';
 	import type { Tab } from './lib/play/music';
 	import { files, parentOf, nameOf, formatDate, formatSize, kindOf, imageType, bookFormat, modeOf, inMode, modes } from './lib/files';
 	import type { Entry, Info, Mode } from './lib/files';
@@ -425,12 +425,39 @@
 		mainList?.querySelector('.row.active')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 	}
 
-	// VIEW's right column: the picture, or the book's cover, over its details
+	// VIEW, as ReBook's library: the titles on the left, on the right the picture or the book's cover,
+	// big, with what it is under it; a folder shows its pictures and books, small. Always in columns.
+	let layout: View = $derived(mode === 'view' ? 'colm' : view);
 	let picture: string | null = $state(null);
+	let pictureSize: { width: number; height: number } | null = $state(null);
 	function setPicture(url: string | null) {
-		if (picture?.startsWith('blob:')) URL.revokeObjectURL(picture);
 		picture = url;
+		pictureSize = null;
 	}
+	/** a folder's covers, drawn as they come (books: cachedCover; pictures are their own) */
+	let covers: Record<string, string | null> = $state({});
+	const formatNames: Record<string, string> = { pdf: 'PDF', epub: 'EPUB', cbz: 'Comic', cbr: 'Comic' };
+	function bookNote(path: string): string {
+		const { progress, position } = placeOf(path);
+		if (position === null) return 'New';
+		return progress >= 0.999 ? 'Finished' : `${Math.round(progress * 100)}% read`;
+	}
+	const extName = (name: string) => (name.match(/\.([^.]+)$/)?.[1] ?? '').toUpperCase();
+	// what a folder holds, for the small pictures: its pictures and books, the first 60
+	let thumbs = $derived(preview && mode === 'view' ? sorted(preview).filter(e => !e.isDir && inMode(e, 'view')).slice(0, 60) : []);
+	$effect(() => {
+		const list = thumbs;
+		let gone = false;
+		(async () => {
+			for (const e of list) {
+				if (gone) return;
+				if (kindOf(e.name) !== 'book' || untrack(() => e.path in covers)) continue;
+				const url = await cachedCover(e.path, bookFormat(e.name));
+				if (!gone) covers[e.path] = url;
+			}
+		})();
+		return () => (gone = true);
+	});
 
 	// load the right column for the selected item (latest request wins)
 	let previewToken = 0;
@@ -441,20 +468,14 @@
 		previewInfo = null;
 		previewError = '';
 		setPicture(null);
-		if (!entry || view !== 'colm') return;
+		if (!entry || layout !== 'colm') return;
 		const kind = entry.isDir ? 'folder' : kindOf(entry.name);
-		if (mode === 'view' && (kind === 'image' || kind === 'book')) {
-			// a moment on the item first: running down the list doesn't draw every cover
+		if (mode === 'view' && kind === 'image') setPicture(convertFileSrc(entry.path));
+		if (mode === 'view' && kind === 'book') {
+			// a moment on the book first: running down the list doesn't draw every cover
 			setTimeout(() => {
 				if (token !== previewToken) return;
-				const load: Promise<string | null> =
-					kind === 'image'
-						? files.readFile(entry.path).then(bytes => URL.createObjectURL(new Blob([bytes], { type: imageType(entry.name) })))
-						: coverOf(entry.path, bookFormat(entry.name));
-				load.then(
-					url => (token === previewToken ? setPicture(url) : url?.startsWith('blob:') && URL.revokeObjectURL(url)),
-					() => {},
-				);
+				cachedCover(entry.path, bookFormat(entry.name)).then(url => token === previewToken && setPicture(url));
 			}, 150);
 		}
 		const load = entry.isDir ? files.list(entry.path) : files.info(entry.path);
@@ -847,7 +868,7 @@
 <main class="browser fade-in" class:play={mode === 'play'} class:hidden={!browsing}>
 	{#if mode !== 'play'}<h1 class="title" title={cwd}>{title}</h1>{/if}
 
-	{#if view === 'colm'}
+	{#if layout === 'colm'}
 		<div class="column left scroll" bind:this={mainList} use:scrollFade>
 			{#each visible as entry, i (entry.path)}
 				<button
@@ -867,18 +888,58 @@
 		<div class="column right scroll" use:scrollFade>
 			{#if previewError}
 				<p class="empty">{previewError}</p>
+			{:else if preview && thumbs.length}
+				<!-- VIEW: a folder's pictures and books, small, the click opens its folder on it -->
+				<div class="thumbs">
+					{#each thumbs as entry (entry.path)}
+						{@const src = kindOf(entry.name) === 'image' ? convertFileSrc(entry.path) : covers[entry.path]}
+						<button class="thumb" onclick={() => openFromPreview(entry)} title={entry.name}>
+							{#if src}
+								<img {src} alt="" loading="lazy" draggable="false" />
+							{:else}
+								<span class="thumb-blank">{extName(entry.name)}</span>
+							{/if}
+							<span class="thumb-name">{entry.name}</span>
+						</button>
+					{/each}
+				</div>
 			{:else if preview}
-				{#each sorted(preview) as entry (entry.path)}
+				{#each sorted(preview).filter(e => inMode(e, mode)) as entry (entry.path)}
 					<button class="row" onclick={() => openFromPreview(entry)}>
 						<span class="name">{entry.name}</span>
 					</button>
 				{:else}
 					<p class="empty">Empty.</p>
 				{/each}
+			{:else if previewInfo && mode === 'view'}
+				<!-- VIEW: the picture or the cover, big, and what it is under it (as ReBook's) -->
+				{@const kind = kindOf(previewInfo.name)}
+				<section class="look">
+					{#if picture}
+						<img
+							class="look-picture"
+							class:page={kind === 'book'}
+							src={picture}
+							alt={previewInfo.name}
+							draggable="false"
+							onload={e => {
+								const img = e.currentTarget as HTMLImageElement;
+								pictureSize = { width: img.naturalWidth, height: img.naturalHeight };
+							}}
+							onerror={() => setPicture(null)}
+						/>
+					{:else}
+						<div class="look-blank"><span>{previewInfo.name.replace(/\.[^.]+$/, '')}</span></div>
+					{/if}
+					<p class="look-meta">
+						{#if kind === 'book'}
+							{formatNames[bookFormat(previewInfo.name)] ?? extName(previewInfo.name)} · {bookNote(previewInfo.path)} · {formatSize(sizeOf(previewInfo))}
+						{:else}
+							{extName(previewInfo.name)}{#if pictureSize} · {pictureSize.width} × {pictureSize.height}{/if} · {formatSize(sizeOf(previewInfo))}
+						{/if}
+					</p>
+				</section>
 			{:else if previewInfo}
-				{#if picture}
-					<img class="picture" src={picture} alt={previewInfo.name} onerror={() => setPicture(null)} />
-				{/if}
 				<dl class="details">
 					<dt>Kind</dt><dd>{previewInfo.kind}</dd>
 					<dt>Size</dt><dd>{formatSize(sizeOf(previewInfo))}</dd>
@@ -1519,17 +1580,101 @@
 		opacity: 0.7;
 	}
 
-	/* VIEW: the picture, or the book's cover, over its details */
-	.picture {
-		display: block;
+	/* VIEW: the picture or the cover, big, in the middle of the column, what it is under it */
+	.look {
+		flex: 1;
+		min-height: 0;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 18px;
+	}
+
+	.look-picture {
 		max-width: 100%;
-		max-height: 52vh;
-		margin-bottom: 28px;
-		border-radius: 10px;
-		box-shadow: 0 1px 12px rgba(0, 0, 0, 0.08);
+		max-height: calc(100% - 60px);
+		min-height: 0;
 		object-fit: contain;
+		border-radius: 12px;
+		box-shadow: 0 2px 18px rgba(0, 0, 0, 0.12);
+	}
+
+	.look-picture.page { border-radius: 6px; }
+
+	.look-blank {
+		width: min(260px, 100%);
+		aspect-ratio: 2 / 3;
+		border: 2px solid var(--line);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: 1.5rem;
 		flex-shrink: 0;
-		align-self: flex-start;
+	}
+
+	.look-blank span {
+		font-family: 'Kurale', serif;
+		font-size: 22px;
+		text-align: center;
+		overflow-wrap: anywhere;
+	}
+
+	.look-meta {
+		font-family: 'Kurale', serif;
+		font-size: 16px;
+		color: var(--muted);
+		text-align: center;
+		flex-shrink: 0;
+	}
+
+	/* VIEW: a folder's pictures and books, small */
+	.thumbs {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+		gap: 22px 18px;
+		flex-shrink: 0;
+	}
+
+	.thumb {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+		min-width: 0;
+		background: transparent;
+		border: none;
+		padding: 0;
+		cursor: pointer;
+		color: var(--text);
+	}
+
+	.thumb img,
+	.thumb-blank {
+		width: 100%;
+		height: 150px;
+		object-fit: cover;
+		border-radius: 8px;
+		box-shadow: 0 1px 10px rgba(0, 0, 0, 0.1);
+	}
+
+	.thumb-blank {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border: 2px solid var(--line);
+		box-shadow: none;
+		font-family: 'Noto Sans JP', sans-serif;
+		font-size: 12px;
+		letter-spacing: 0.3em;
+	}
+
+	.thumb-name {
+		font-family: 'Kurale', serif;
+		font-size: 13px;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		text-align: left;
 	}
 
 	/* the small window's corner; the big one has the side button */

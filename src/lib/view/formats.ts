@@ -71,6 +71,19 @@ async function epubCover(path: string): Promise<string | null> {
 	}
 }
 
+/** Covers already drawn in this window, by path (null: the book has none). */
+const covers = new Map<string, Promise<string | null>>();
+
+/** A book's cover, drawn once per window and kept. */
+export function cachedCover(path: string, format: Format): Promise<string | null> {
+	let cover = covers.get(path);
+	if (!cover) {
+		cover = coverOf(path, format).catch(() => null);
+		covers.set(path, cover);
+	}
+	return cover;
+}
+
 /** A book's cover as a picture's address (a comic's first page); null when it has none. */
 export async function coverOf(path: string, format: Format): Promise<string | null> {
 	if (isComic(format)) {
