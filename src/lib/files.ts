@@ -33,6 +33,8 @@ export const files = {
 	info: (path: string) => invoke<Info>('item_info', { path }),
 	folderSize: (path: string) => invoke<number>('folder_size', { path }),
 	createFolder: (parent: string, name: string) => invoke<string>('create_folder', { parent, name }),
+	createFile: (parent: string, name: string) => invoke<string>('create_file', { parent, name }),
+	copyInto: (paths: string[], dir: string) => invoke<string[]>('copy_into', { paths, dir }),
 	rename: (path: string, name: string) => invoke<string>('rename_item', { path, name }),
 	duplicate: (path: string) => invoke<string>('duplicate_item', { path }),
 	compress: (path: string) => invoke<string>('compress_item', { path }),
@@ -92,6 +94,8 @@ const AUDIO = ['mp3', 'm4a', 'aac', 'alac', 'flac', 'wav', 'aif', 'aiff', 'ogg',
 const VIDEO = ['mp4', 'm4v', 'mov', 'webm'];
 // books VIEW reads
 const BOOKS = ['pdf', 'epub', 'cbz', 'cbr'];
+/** what VIEW's ADD takes */
+export const VIEW_EXTENSIONS = [...Object.keys(IMAGES), ...BOOKS];
 const TEXT = [
 	'txt', 'md', 'markdown', 'log', 'csv', 'tsv', 'json', 'jsonl', 'yaml', 'yml', 'toml', 'ini', 'conf', 'cfg', 'env',
 	'xml', 'html', 'htm', 'css', 'scss', 'js', 'mjs', 'cjs', 'ts', 'tsx', 'jsx', 'svelte', 'vue', 'py', 'rb', 'rs',

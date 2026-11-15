@@ -11,11 +11,12 @@
 	import { cachedCover } from './lib/view/formats';
 	import { placeOf, type Book } from './lib/view/books';
 	import type { Tab } from './lib/play/music';
-	import { files, parentOf, nameOf, formatDate, formatSize, kindOf, imageType, bookFormat, modeOf, inMode, modes } from './lib/files';
+	import { open as openDialog } from '@tauri-apps/plugin-dialog';
+	import { files, parentOf, nameOf, formatDate, formatSize, kindOf, imageType, bookFormat, modeOf, inMode, modes, VIEW_EXTENSIONS } from './lib/files';
 	import type { Entry, Info, Mode } from './lib/files';
 
 	type View = 'colm' | 'list';
-	type PopupKind = 'none' | 'delete' | 'new' | 'info' | 'actions' | 'rename';
+	type PopupKind = 'none' | 'delete' | 'new' | 'newtext' | 'info' | 'actions' | 'rename';
 	type ActionId = 'open' | 'rename' | 'duplicate' | 'compress' | 'copy' | 'reveal' | 'info' | 'trash';
 
 	// a window opened for a file (from FILE, or Open With in Finder: lib.rs, new_window): its mode, the file shown
@@ -37,6 +38,8 @@
 		return fallback;
 	}
 	let mode: Mode = $state(opened ? (opened.mode ?? 'file') : readSaved('mode', modes, 'file'));
+	// such a window in PLAY, VIEW or TEXT has its mode's own buttons (as RePlay's, ReBook's) and no gauges
+	let own = $derived(locked && mode !== 'file');
 	let playTab: Tab = $state(readSaved<Tab>('playTab', ['folder', 'songs', 'radio'], 'folder'));
 	$effect(() => {
 		try {
@@ -523,6 +526,42 @@
 		tick().then(() => newNameInput?.select());
 	}
 
+	/** TEXT's NEW: a new text in this folder, opened to be written */
+	function openNewText() {
+		newName = 'Untitled.md';
+		popupError = '';
+		popup = 'newtext';
+		tick().then(() => newNameInput?.setSelectionRange(0, newName.lastIndexOf('.')));
+	}
+
+	async function createText() {
+		try {
+			const path = await files.createFile(cwd, newName);
+			popup = 'none';
+			query = '';
+			await reload(nameOf(path));
+			const entry = entries.find(e => e.path === path);
+			if (entry) await show(entry);
+		} catch (e) {
+			popupError = String(e);
+		}
+	}
+
+	/** VIEW's ADD (A): pictures and books copied into this folder */
+	async function addFiles() {
+		const picked = await openDialog({ multiple: true, filters: [{ name: 'Pictures and books', extensions: VIEW_EXTENSIONS }] });
+		const paths = Array.isArray(picked) ? picked : typeof picked === 'string' ? [picked] : [];
+		if (!paths.length) return;
+		try {
+			const copied = await files.copyInto(paths, cwd);
+			showToast('ADDED');
+			await reload(copied[0] ? nameOf(copied[0]) : undefined);
+			await scrollSelectedIntoView();
+		} catch (e) {
+			showToast('NOT ADDED');
+		}
+	}
+
 	async function createFolder() {
 		try {
 			const path = await files.createFolder(cwd, newName);
@@ -658,6 +697,7 @@
 				e.preventDefault();
 				if (popup === 'delete') moveToTrash();
 				else if (popup === 'new') createFolder();
+				else if (popup === 'newtext') createText();
 				else if (popup === 'rename') renameItem();
 				else if (popup === 'actions') runAction(actions[selectedAction].id);
 				else closePopup();
@@ -754,7 +794,11 @@
 			e.preventDefault();
 			searchInput?.focus();
 		} else if (!mod && e.code === 'KeyN') {
-			openNewFolder();
+			// TEXT's own window: a new text; elsewhere a new folder
+			if (own && mode === 'text') openNewText();
+			else openNewFolder();
+		} else if (!mod && e.code === 'KeyA' && own && mode === 'view') {
+			addFiles();
 		} else if (!mod && e.code === 'KeyI') {
 			if (mode === 'play') playPanel?.openInfo();
 			else openInfo();
@@ -860,6 +904,25 @@
 
 <WindowControls />
 
+{#if own && mode === 'play'}
+	<!-- PLAY's own window: RePlay's buttons (PREV / NEXT are the player's: lib/play/Play.svelte) -->
+	<button class="side switch switch-colm" class:ink-mark-v={playTab !== 'radio'} onclick={() => playPanel?.setTab('folder')} title="Songs here (1)">SONG</button>
+	<button class="side switch switch-list" class:ink-mark-v={playTab === 'radio'} onclick={() => playPanel?.setTab('radio')} title="Radio (3)">LIVE</button>
+	<button class="side plain nav-info" onclick={() => playPanel?.openInfo()} title="Info (I)">INFO</button>
+	<button class="side plain nav-del" onclick={() => playPanel?.setMini(true)} title="Mini player (M)">MINI</button>
+{:else if own && mode === 'view'}
+	<!-- VIEW's own window: ReBook's buttons -->
+	<button class="side boxed nav-mid-left" onclick={() => openEntry()} disabled={!current || current.isDir} title="Read, look (Enter)">READ</button>
+	<button class="side boxed nav-mid-right" onclick={addFiles} title="Add pictures and books here (A)">ADD</button>
+	<button class="side plain nav-info" onclick={openInfo} title="Info (I)">INFO</button>
+	<button class="side plain nav-del" onclick={openDelete} disabled={!current} title="Move to Trash (Backspace)">DEL</button>
+{:else if own && mode === 'text'}
+	<!-- TEXT's own window: write the text chosen, or a new one -->
+	<button class="side boxed nav-mid-left" onclick={() => openEntry()} disabled={!current || current.isDir} title="Edit (Enter)">EDIT</button>
+	<button class="side boxed nav-mid-right" onclick={openNewText} title="A new text here (N)">NEW</button>
+	<button class="side plain nav-info" onclick={openInfo} title="Info (I)">INFO</button>
+	<button class="side plain nav-del" onclick={openDelete} disabled={!current} title="Move to Trash (Backspace)">DEL</button>
+{:else}
 <!-- the view switch (the modes are on F / T / V / P; VIEW and TEXT always show columns) -->
 <button class="side switch switch-colm" class:ink-mark-v={layout === 'colm'} onclick={() => (view = 'colm')} title="Columns (C)">COLM</button>
 <button class="side switch switch-list" class:ink-mark-v={layout !== 'colm'} onclick={() => (view = 'list')} title="List (L)">LIST</button>
@@ -880,6 +943,7 @@
 
 <button class="side plain nav-info" onclick={() => (mode === 'play' ? playPanel?.openInfo() : openInfo())} title="Info (I)">INFO</button>
 <button class="side plain nav-del" onclick={openDelete} disabled={!current} title="Move to Trash (Backspace)">DEL</button>
+{/if}
 <!-- a small window: no buttons, the keys only -->
 
 {#if mode === 'play'}
@@ -1027,7 +1091,7 @@
 		</div>
 	{/if}
 
-	{#if disk && mode !== 'play'}
+	{#if disk && mode !== 'play' && !own}
 		<div class="disk" title="{gb(disk.total - disk.free)} of {gb(disk.total)} used, {gb(disk.free)} free">
 			<div class="disk-used" style="width: {diskFull * 100}%"></div>
 		</div>
@@ -1066,6 +1130,17 @@
 		<div class="pop-actions">
 			<button class="pop-btn" onclick={moveToTrash}>YES</button>
 			<button class="pop-btn" onclick={closePopup}>NO</button>
+		</div>
+	</Popup>
+{:else if popup === 'newtext'}
+	<Popup onclose={closePopup}>
+		<p class="pop-heading">NEW TEXT</p>
+		<div class="pop-divider"></div>
+		<input bind:this={newNameInput} bind:value={newName} class="name-input" type="text" maxlength="255" />
+		{#if popupError}<p class="pop-error">{popupError}</p>{/if}
+		<div class="pop-actions">
+			<button class="pop-btn" onclick={createText}>CREATE</button>
+			<button class="pop-btn" onclick={closePopup}>CANCEL</button>
 		</div>
 	</Popup>
 {:else if popup === 'new'}
@@ -1198,6 +1273,8 @@
 	/* ── side buttons, placed as in the reference ── */
 	.switch-colm { left: calc(6.25% - 28px); top: calc(6.25% + 8px); }
 	.switch-list { right: calc(6.25% - 28px); top: calc(6.25% + 8px); }
+	.nav-mid-left { left: calc(6.25% - 28px); top: 50%; transform: translateY(-50%); }
+	.nav-mid-right { right: calc(6.25% - 28px); top: 50%; transform: translateY(-50%); }
 	.nav-info { left: calc(6.25% - 28px); bottom: 6.25%; }
 	.nav-del { right: calc(6.25% - 28px); bottom: 6.25%; }
 

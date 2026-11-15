@@ -43,7 +43,7 @@
 
 	const MINI = { width: 440, height: 300 };
 	const FULL = { width: 1440, height: 900 };
-	async function setMini(on: boolean) {
+	export async function setMini(on: boolean) {
 		const size = on ? MINI : FULL;
 		await getCurrentWindow().setSize(new LogicalSize(size.width, size.height));
 	}

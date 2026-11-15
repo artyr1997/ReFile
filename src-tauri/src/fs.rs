@@ -237,6 +237,34 @@ pub fn create_folder(parent: &Path, name: &str) -> Result<PathBuf> {
     Ok(path)
 }
 
+/// A new, empty file (TEXT's NEW); never over another item.
+pub fn create_file(parent: &Path, name: &str) -> Result<PathBuf> {
+    let name = valid_name(name)?;
+    let path = parent.join(name);
+    if path.exists() {
+        return Err(format!("“{name}” already exists here."));
+    }
+    fs::write(&path, b"").map_err(err)?;
+    Ok(path)
+}
+
+/// Files copied into `dir` (VIEW's ADD): one there by the same name already, the copy is "name copy".
+pub fn copy_into(paths: &[PathBuf], dir: &Path) -> Result<Vec<PathBuf>> {
+    let mut copied = Vec::new();
+    for path in paths {
+        let mut target = dir.join(path.file_name().ok_or("No file name")?);
+        if target == *path {
+            continue;
+        }
+        if target.exists() {
+            target = copy_name(dir, path);
+        }
+        copy_recursive(path, &target).map_err(err)?;
+        copied.push(target);
+    }
+    Ok(copied)
+}
+
 /// Renames an item in place; never overwrites another item.
 pub fn rename(path: &Path, new_name: &str) -> Result<PathBuf> {
     let new_name = valid_name(new_name)?;

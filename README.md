@@ -9,8 +9,12 @@ a file opened (Enter, a double click), in any mode, goes to a new window of its 
 (music too: that window plays it); in that window the folder's others open there.
 **⇧Enter** (or **⇧F / ⇧T / ⇧V / ⇧P**, for another mode) opens the folder selected (or this one) in a new window,
 every file inside it at any depth in one list, in that mode: ⇧P on Music, all its music.
-Those new windows keep to what they were opened for: their mode stays (only its button shows), and
-nothing above their folder can be reached (the folders inside a file's folder can).
+Those new windows keep to what they were opened for: their mode stays, and nothing above their folder can
+be reached (the folders inside a file's folder can). In PLAY, VIEW and TEXT they have no gauges and their
+mode's own buttons:
+- PLAY, as RePlay's: SONG / LIVE at the top (the songs here / the radio), PREV / NEXT on the sides, INFO / MINI at the bottom
+- VIEW, as ReBook's: READ / ADD on the sides (ADD, or A: pictures and books copied into this folder), INFO / DEL at the bottom
+- TEXT: EDIT / NEW on the sides (NEW, or N: a new text here, opened to be written), INFO / DEL at the bottom
 
 - **FILE**: everything. COLM / LIST (C / L): a column view (folder + preview of the selected item: a picture, a book's cover, a text's start or a video's first frame over its details) or a list with dates and sizes; ← goes to the parent folder, N makes a new one, Backspace moves to the Trash, I shows details and the keys.
 - **TEXT**: only texts (code, notes, logs, anything with text in it), always in columns, as VIEW: on the right the start of the text as a page, with its kind, lines and size under it; a folder shows its texts as small pages of their first lines. Enter opens one, written in place, saving itself; ← → step through the folder's others.

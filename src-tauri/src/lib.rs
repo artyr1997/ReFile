@@ -95,6 +95,17 @@ fn create_folder(parent: String, name: String) -> CmdResult<String> {
 }
 
 #[tauri::command]
+fn create_file(parent: String, name: String) -> CmdResult<String> {
+    fs::create_file(&PathBuf::from(parent), &name).map(|p| p.to_string_lossy().into_owned())
+}
+
+#[tauri::command]
+fn copy_into(paths: Vec<String>, dir: String) -> CmdResult<Vec<String>> {
+    let paths: Vec<PathBuf> = paths.into_iter().map(PathBuf::from).collect();
+    fs::copy_into(&paths, &PathBuf::from(dir)).map(|v| v.into_iter().map(|p| p.to_string_lossy().into_owned()).collect())
+}
+
+#[tauri::command]
 fn rename_item(path: String, name: String) -> CmdResult<String> {
     fs::rename(&PathBuf::from(path), &name).map(|p| p.to_string_lossy().into_owned())
 }
@@ -645,6 +656,8 @@ pub fn run() {
             item_info,
             folder_size,
             create_folder,
+            create_file,
+            copy_into,
             rename_item,
             duplicate_item,
             compress_item,
