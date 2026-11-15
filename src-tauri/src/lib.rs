@@ -167,6 +167,50 @@ fn read_text(path: String) -> CmdResult<Text> {
     Ok(Text { text, truncated })
 }
 
+/// The start of a text, for TEXT's previews: its first `max` bytes (cut at a letter's end), and how
+/// many lines the whole file has; an error when it isn't text.
+#[derive(serde::Serialize)]
+struct Head {
+    text: String,
+    lines: usize,
+}
+
+#[tauri::command]
+async fn text_head(path: String, max: usize) -> CmdResult<Head> {
+    tauri::async_runtime::spawn_blocking(move || {
+        use std::io::Read;
+        let mut file = std::fs::File::open(&path).map_err(|e| e.to_string())?;
+        let mut head = vec![0; max.min(64 * 1024)];
+        let n = file.read(&mut head).map_err(|e| e.to_string())?;
+        head.truncate(n);
+        if head[..n.min(8192)].contains(&0) {
+            return Err("Not text".to_string());
+        }
+        let text = match std::str::from_utf8(&head) {
+            Ok(t) => t.to_owned(),
+            Err(e) if e.valid_up_to() + 4 >= head.len() => String::from_utf8_lossy(&head[..e.valid_up_to()]).into_owned(),
+            Err(_) => return Err("Not text".to_string()),
+        };
+        // the lines of all of it (up to 50 MB read; more: what was counted)
+        let mut lines = head.iter().filter(|&&b| b == b'\n').count();
+        let mut last = head.last().copied();
+        let mut rest = file.take(50_000_000);
+        let mut buf = vec![0; 256 * 1024];
+        loop {
+            let k = rest.read(&mut buf).map_err(|e| e.to_string())?;
+            if k == 0 {
+                break;
+            }
+            lines += buf[..k].iter().filter(|&&b| b == b'\n').count();
+            last = Some(buf[k - 1]);
+        }
+        // a last line without its line break counts too
+        Ok(Head { text, lines: lines + usize::from(last.is_some_and(|b| b != b'\n')) })
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 /// The viewer's edits, written over the file.
 #[tauri::command]
 fn write_text(path: String, text: String) -> CmdResult<()> {
@@ -610,6 +654,7 @@ pub fn run() {
             read_file,
             read_text,
             write_text,
+            text_head,
             books::comic_pages,
             play::play_files,
             play::pause_music,

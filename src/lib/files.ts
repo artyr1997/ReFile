@@ -42,6 +42,8 @@ export const files = {
 	readFile: (path: string) => invoke<ArrayBuffer>('read_file', { path }),
 	readText: (path: string) => invoke<{ text: string; truncated: boolean }>('read_text', { path }),
 	writeText: (path: string, text: string) => invoke<void>('write_text', { path, text }),
+	/** a text's first `max` bytes and how many lines it has (TEXT's previews) */
+	textHead: (path: string, max: number) => invoke<{ text: string; lines: number }>('text_head', { path, max }),
 };
 
 export function parentOf(path: string): string | null {

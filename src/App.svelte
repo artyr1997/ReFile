@@ -427,7 +427,26 @@
 
 	// VIEW, as ReBook's library: the titles on the left, on the right the picture or the book's cover,
 	// big, with what it is under it; a folder shows its pictures and books, small. Always in columns.
-	let layout: View = $derived(mode === 'view' ? 'colm' : view);
+	// TEXT the same: the start of the text as a page, its lines under it; a folder's texts, small
+	let layout: View = $derived(mode === 'view' || mode === 'text' ? 'colm' : view);
+	let page: { text: string; lines: number } | null = $state(null);
+	let pageError = $state(false);
+	/** a folder's texts' first lines, as they come */
+	let heads: Record<string, string | null> = $state({});
+	let textThumbs = $derived(preview && mode === 'text' ? sorted(preview).filter(e => !e.isDir && inMode(e, 'text')).slice(0, 40) : []);
+	$effect(() => {
+		const list = textThumbs;
+		let gone = false;
+		(async () => {
+			for (const e of list) {
+				if (gone) return;
+				if (untrack(() => e.path in heads)) continue;
+				const head = await files.textHead(e.path, 700).then(h => h.text, () => null);
+				if (!gone) heads[e.path] = head;
+			}
+		})();
+		return () => (gone = true);
+	});
 	let picture: string | null = $state(null);
 	let pictureSize: { width: number; height: number } | null = $state(null);
 	function setPicture(url: string | null) {
@@ -468,9 +487,17 @@
 		previewInfo = null;
 		previewError = '';
 		setPicture(null);
+		page = null;
+		pageError = false;
 		if (!entry || layout !== 'colm') return;
 		const kind = entry.isDir ? 'folder' : kindOf(entry.name);
 		if (mode === 'view' && kind === 'image') setPicture(convertFileSrc(entry.path));
+		if (mode === 'text' && kind === 'text') {
+			files.textHead(entry.path, 6000).then(
+				head => token === previewToken && (page = head),
+				() => token === previewToken && (pageError = true),
+			);
+		}
 		if (mode === 'view' && kind === 'book') {
 			// a moment on the book first: running down the list doesn't draw every cover
 			setTimeout(() => {
@@ -903,6 +930,20 @@
 						</button>
 					{/each}
 				</div>
+			{:else if preview && textThumbs.length}
+				<!-- TEXT: a folder's texts, as small pages of their first lines -->
+				<div class="thumbs">
+					{#each textThumbs as entry (entry.path)}
+						<button class="thumb" onclick={() => openFromPreview(entry)} title={entry.name}>
+							{#if heads[entry.path] === null}
+								<span class="thumb-blank">{extName(entry.name) || 'TEXT'}</span>
+							{:else}
+								<pre class="thumb-page">{heads[entry.path] ?? ''}</pre>
+							{/if}
+							<span class="thumb-name">{entry.name}</span>
+						</button>
+					{/each}
+				</div>
 			{:else if preview}
 				{#each sorted(preview).filter(e => inMode(e, mode)) as entry (entry.path)}
 					<button class="row" onclick={() => openFromPreview(entry)}>
@@ -937,6 +978,18 @@
 						{:else}
 							{extName(previewInfo.name)}{#if pictureSize} · {pictureSize.width} × {pictureSize.height}{/if} · {formatSize(sizeOf(previewInfo))}
 						{/if}
+					</p>
+				</section>
+			{:else if previewInfo && mode === 'text'}
+				<!-- TEXT: the start of the text as a page, and what it is under it -->
+				<section class="look">
+					{#if page}
+						<pre class="look-page">{page.text}</pre>
+					{:else if pageError}
+						<div class="look-blank"><span>Not text after all.</span></div>
+					{/if}
+					<p class="look-meta">
+						{extName(previewInfo.name) || 'TEXT'}{#if page} · {page.lines} {page.lines === 1 ? 'line' : 'lines'}{/if} · {formatSize(sizeOf(previewInfo))}
 					</p>
 				</section>
 			{:else if previewInfo}
@@ -1626,6 +1679,46 @@
 		color: var(--muted);
 		text-align: center;
 		flex-shrink: 0;
+	}
+
+	/* TEXT: the start of a text, as a page */
+	.look-page {
+		width: 100%;
+		max-height: calc(100% - 60px);
+		min-height: 0;
+		overflow: hidden;
+		margin: 0;
+		padding: 28px 32px;
+		border-radius: 12px;
+		box-shadow: 0 2px 18px rgba(0, 0, 0, 0.12);
+		background: color-mix(in srgb, var(--bg) 92%, var(--text) 4%);
+		font-family: 'SF Mono', Menlo, monospace;
+		font-size: 12px;
+		line-height: 1.6;
+		white-space: pre-wrap;
+		overflow-wrap: anywhere;
+		color: var(--text);
+		/* the page fades out at its foot, as more text goes on */
+		mask-image: linear-gradient(to bottom, #000 80%, transparent);
+	}
+
+	.thumb-page {
+		width: 100%;
+		height: 150px;
+		margin: 0;
+		padding: 10px 11px;
+		overflow: hidden;
+		border-radius: 8px;
+		box-shadow: 0 1px 10px rgba(0, 0, 0, 0.1);
+		background: color-mix(in srgb, var(--bg) 92%, var(--text) 4%);
+		font-family: 'SF Mono', Menlo, monospace;
+		font-size: 7px;
+		line-height: 1.5;
+		white-space: pre-wrap;
+		overflow-wrap: anywhere;
+		text-align: left;
+		color: var(--text);
+		mask-image: linear-gradient(to bottom, #000 70%, transparent);
 	}
 
 	/* VIEW: a folder's pictures and books, small */
