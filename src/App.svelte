@@ -491,14 +491,16 @@
 		pageError = false;
 		if (!entry || layout !== 'colm') return;
 		const kind = entry.isDir ? 'folder' : kindOf(entry.name);
-		if (mode === 'view' && kind === 'image') setPicture(convertFileSrc(entry.path));
-		if (mode === 'text' && kind === 'text') {
+		// FILE shows a look too: the picture, the cover, the text's start, a video's first frame
+		const looks = mode === 'file' || mode === 'view';
+		if (looks && kind === 'image') setPicture(convertFileSrc(entry.path));
+		if ((mode === 'text' || mode === 'file') && kind === 'text') {
 			files.textHead(entry.path, 6000).then(
 				head => token === previewToken && (page = head),
 				() => token === previewToken && (pageError = true),
 			);
 		}
-		if (mode === 'view' && kind === 'book') {
+		if (looks && kind === 'book') {
 			// a moment on the book first: running down the list doesn't draw every cover
 			setTimeout(() => {
 				if (token !== previewToken) return;
@@ -993,6 +995,18 @@
 					</p>
 				</section>
 			{:else if previewInfo}
+				<!-- FILE: what the file holds, over its details -->
+				{@const kind = kindOf(previewInfo.name)}
+				{#if mode === 'file'}
+					{#if (kind === 'image' || kind === 'book') && picture}
+						<img class="file-look" class:page={kind === 'book'} src={picture} alt={previewInfo.name} draggable="false" onerror={() => setPicture(null)} />
+					{:else if kind === 'text' && page}
+						<pre class="look-page file-page">{page.text}</pre>
+					{:else if kind === 'video'}
+						<!-- svelte-ignore a11y_media_has_caption -->
+						<video class="file-look" src="{convertFileSrc(previewInfo.path)}#t=0.5" preload="metadata" muted playsinline></video>
+					{/if}
+				{/if}
 				<dl class="details">
 					<dt>Kind</dt><dd>{previewInfo.kind}</dd>
 					<dt>Size</dt><dd>{formatSize(sizeOf(previewInfo))}</dd>
@@ -1679,6 +1693,27 @@
 		color: var(--muted);
 		text-align: center;
 		flex-shrink: 0;
+	}
+
+	/* FILE: the look over the details, smaller */
+	.file-look {
+		display: block;
+		max-width: 100%;
+		max-height: 46vh;
+		margin-bottom: 30px;
+		align-self: flex-start;
+		flex-shrink: 0;
+		object-fit: contain;
+		border-radius: 12px;
+		box-shadow: 0 2px 18px rgba(0, 0, 0, 0.12);
+	}
+
+	.file-look.page { border-radius: 6px; }
+
+	.file-page {
+		flex-shrink: 0;
+		max-height: 46vh;
+		margin-bottom: 30px;
 	}
 
 	/* TEXT: the start of a text, as a page */
