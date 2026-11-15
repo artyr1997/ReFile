@@ -375,7 +375,7 @@
 	/* a small window, as ReSurf's: no side buttons, a smaller card and words */
 	@media (max-width: 759px), (max-height: 559px) {
 		.side { display: none; }
-		.corner { display: block; }
+		.corner { display: none; }
 
 		.video:not(.full) .card {
 			top: 44px;

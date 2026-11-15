@@ -44,13 +44,7 @@
 			localStorage.setItem('playTab', playTab);
 		} catch {}
 	});
-	const modeTitles: Record<Mode, string> = {
-		file: 'Everything (F)',
-		text: 'Texts (T)',
-		view: 'Pictures and books (V)',
-		play: 'Music and videos (P)',
-	};
-	/** F / T / V / P, or a corner: this folder in that mode, the selection kept where it can be */
+	/** F / T / V / P: this folder in that mode, the selection kept where it can be */
 	function setMode(next: Mode) {
 		if (next === mode || locked) return;
 		const keep = current?.path;
@@ -866,10 +860,9 @@
 
 <WindowControls />
 
-<!-- the four modes, in the corners: the one in use inked with a vertical stroke (C / L: columns or a list) -->
-{#each locked ? [mode] : modes as m (m)}
-	<button class="side switch mode-{m}" class:ink-mark-v={mode === m} onclick={() => setMode(m)} title={modeTitles[m]}>{m.toUpperCase()}</button>
-{/each}
+<!-- the view switch (the modes are on F / T / V / P; VIEW and TEXT always show columns) -->
+<button class="side switch switch-colm" class:ink-mark-v={layout === 'colm'} onclick={() => (view = 'colm')} title="Columns (C)">COLM</button>
+<button class="side switch switch-list" class:ink-mark-v={layout !== 'colm'} onclick={() => (view = 'list')} title="List (L)">LIST</button>
 
 <!-- how busy the Mac is: the processor on the left, the memory on the right (in PLAY: PREV and NEXT) -->
 {#if load && mode !== 'play'}
@@ -885,10 +878,9 @@
 	<span class="gauge-number gauge-memory">{Math.round(load.memory * 100)}</span>
 {/if}
 
-<!-- a small window: the modes in its corners -->
-{#each locked ? [mode] : modes as m (m)}
-	<button class="corner mode-{m}" class:on={mode === m} onclick={() => setMode(m)} title={modeTitles[m]}>{m.toUpperCase()}</button>
-{/each}
+<button class="side plain nav-info" onclick={() => (mode === 'play' ? playPanel?.openInfo() : openInfo())} title="Info (I)">INFO</button>
+<button class="side plain nav-del" onclick={openDelete} disabled={!current} title="Move to Trash (Backspace)">DEL</button>
+<!-- a small window: no buttons, the keys only -->
 
 {#if mode === 'play'}
 	<Play bind:this={playPanel} bind:tab={playTab} bind:query mini={tiny} toast={showToast} {shortcuts} />
@@ -1203,15 +1195,14 @@
 		color: var(--text);
 	}
 
-	/* ── the modes, in the corners ── */
-	.side.mode-file { left: calc(6.25% - 28px); top: calc(6.25% + 8px); }
-	.side.mode-text { right: calc(6.25% - 28px); top: calc(6.25% + 8px); }
-	.side.mode-view { left: calc(6.25% - 28px); bottom: 6.25%; }
-	.side.mode-play { right: calc(6.25% - 28px); bottom: 6.25%; }
-	.corner.mode-file { top: 52px; left: 12px; }
-	.corner.mode-text { top: 12px; right: 12px; }
-	.corner.mode-view { bottom: 12px; left: 12px; }
-	.corner.mode-play { bottom: 12px; right: 12px; }
+	/* ── side buttons, placed as in the reference ── */
+	.switch-colm { left: calc(6.25% - 28px); top: calc(6.25% + 8px); }
+	.switch-list { right: calc(6.25% - 28px); top: calc(6.25% + 8px); }
+	.nav-info { left: calc(6.25% - 28px); bottom: 6.25%; }
+	.nav-del { right: calc(6.25% - 28px); bottom: 6.25%; }
+
+	/* plain buttons sit centred where a box would be */
+	.side.plain { width: 42px; }
 
 	/* PLAY's songs and radio, and its mini player: the browser steps aside */
 	.browser.hidden { display: none; }
@@ -1835,7 +1826,7 @@
 		}
 
 		.viewer-close {
-			display: block;
+			display: none;
 			position: fixed;
 			top: 12px;
 			right: 12px;
