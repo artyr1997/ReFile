@@ -1283,9 +1283,9 @@
 
 	/* PLAY's songs and radio, and its mini player: the browser steps aside */
 	.browser.hidden { display: none; }
-	/* in PLAY, between the tabs and the player */
+	/* in PLAY, between the search and the player */
 	.browser.play .scroll {
-		top: calc(6.25% + 64px);
+		top: calc(6.25% + 40px);
 		bottom: calc(6.25% + 112px);
 	}
 
@@ -1617,10 +1617,10 @@
 			transition: opacity 200ms ease;
 		}
 
-		/* PLAY: the search at the top, the list between the tabs and the player */
+		/* PLAY: the search at the top, the list between it and the player */
 		.search.top { top: 12px; }
 		.browser.play .scroll {
-			top: 76px;
+			top: 52px;
 			bottom: 128px;
 		}
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-	// PLAY (what RePlay was): three tabs under the search, FOLDER (ReFile's own list, of music and
+	// PLAY (what RePlay was): three views (1 / 2 / 3; no tabs shown), FOLDER (ReFile's own list, of music and
 	// videos only: App.svelte), SONGS (every song of the music folder, A to Z) and RADIO (genres and
 	// their stations); the player under them all, PREV / NEXT on the sides. A small window is the mini
 	// player. App.svelte hands the keys here first (key()).
@@ -412,13 +412,7 @@
 		</div>
 	</main>
 {:else}
-	<!-- the tabs, under the search -->
-	<nav class="tabs">
-		<button class="tab" onclick={() => setTab('folder')} title="Folder (1)"><span class:ink-mark={tab === 'folder'}>FOLDER</span></button>
-		<button class="tab" onclick={() => setTab('songs')} title="Songs (2)"><span class:ink-mark={tab === 'songs'}>SONGS</span></button>
-		<button class="tab" onclick={() => setTab('radio')} title="Radio (3)"><span class:ink-mark={tab === 'radio'}>RADIO</span></button>
-	</nav>
-
+	<!-- no tabs: 1 / 2 / 3 (and SONG / LIVE in PLAY's own window) choose the folder, the songs, the radio -->
 	<button class="side boxed nav-prev" onclick={previous} title="Previous (⏮)">PREV</button>
 	<button class="side boxed nav-next" onclick={next} title="Next (⏭)">NEXT</button>
 
@@ -565,38 +559,14 @@
 {/if}
 
 <style>
-	/* ── the tabs, under the search ── */
-	.tabs {
-		position: fixed;
-		top: calc(6.25% + 22px);
-		left: 50%;
-		transform: translateX(-50%);
-		display: flex;
-		gap: 2.2rem;
-		z-index: 5;
-	}
-
-	.tab {
-		background: transparent;
-		border: none;
-		padding: 0.25em 0.3em;
-		font-family: 'Noto Sans JP', sans-serif;
-		font-size: 12px;
-		letter-spacing: 0.3em;
-		cursor: pointer;
-		opacity: 0.75;
-	}
-
-	.tab:hover { opacity: 1; }
-
 	.nav-prev { left: calc(6.25% - 28px); top: 50%; transform: translateY(-50%); }
 	.nav-next { right: calc(6.25% - 28px); top: 50%; transform: translateY(-50%); }
 
-	/* ── songs and the radio: between the tabs and the player ── */
+	/* ── songs and the radio: between the search and the player ── */
 	.songs,
 	.radio {
 		position: fixed;
-		top: calc(6.25% + 64px);
+		top: calc(6.25% + 40px);
 		bottom: calc(6.25% + 112px);
 		left: calc(6.25% + 96px);
 		right: calc(6.25% + 96px);
@@ -859,11 +829,9 @@
 
 	/* ── a small window (not yet the mini player's): the same, closer to the edges ── */
 	@media (max-width: 759px), (max-height: 559px) {
-		.tabs { top: 46px; gap: 1.4rem; }
-
 		.songs,
 		.radio {
-			top: 76px;
+			top: 52px;
 			bottom: 128px;
 			left: 40px;
 			right: 40px;
