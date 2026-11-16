@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { t } from '../lang.svelte';
 	// PLAY (what RePlay was): three views (1 / 2 / 3; no tabs shown), FOLDER (ReFile's own list, of music and
 	// videos only: App.svelte), SONGS (every song of the music folder, A to Z) and RADIO (genres and
 	// their stations); the player under them all, PREV / NEXT on the sides. A small window is the mini
@@ -413,8 +414,8 @@
 	</main>
 {:else}
 	<!-- no tabs: 1 / 2 / 3 (and SONG / LIVE in PLAY's own window) choose the folder, the songs, the radio -->
-	<button class="side boxed nav-prev" onclick={previous} title="Previous (⏮)">PREV</button>
-	<button class="side boxed nav-next" onclick={next} title="Next (⏭)">NEXT</button>
+	<button class="side boxed nav-prev" onclick={previous} title="Previous (⏮)">{t('PREV')}</button>
+	<button class="side boxed nav-next" onclick={next} title="Next (⏭)">{t('NEXT')}</button>
 
 	{#if tab === 'radio'}
 		<div class="radio">

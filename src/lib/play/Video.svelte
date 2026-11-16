@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { t } from '../lang.svelte';
 	// A video as ReSurf shows a page: in a card on the paper, its corners round, a light shadow under
 	// it; the folder's name above it, and under it the video's name between ← and → (the folder's
 	// other videos). The side buttons as ReSurf's: MUSIC at the top left, FULL at the bottom right,
@@ -125,8 +126,8 @@
 <div class="video fade-in" class:full>
 	<!-- FULL leaves everything but the card: F, a double click or Esc bring the rest back -->
 	{#if !full}
-		<button class="side plain nav-music" onclick={onclose} title="Back to the folder (Esc)">BACK</button>
-		<button class="side switch nav-full" onclick={toggleFull} title="Video fills the window (F)">FULL</button>
+		<button class="side plain nav-music" onclick={onclose} title="Back to the folder (Esc)">{t('BACK')}</button>
+		<button class="side switch nav-full" onclick={toggleFull} title="Video fills the window (F)">{t('FULL')}</button>
 		<!-- a small window: the corners instead -->
 		<button class="corner top-right" onclick={onclose} title="Back to the folder (Esc)">BACK</button>
 		<button class="corner bottom-right" onclick={toggleFull} title="Video fills the window (F)">FULL</button>

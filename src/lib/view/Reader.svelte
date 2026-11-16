@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { t } from '../lang.svelte';
 	// VIEW's reading (what ReBook's was), of a book where it lies. PDFs and comics are page-based:
 	// portrait pages come two per screen, a landscape page takes the whole screen (see buildSpreads).
 	// EPUB text reflows; epub.js shows two columns when the window is wide. The place is kept by the
@@ -276,10 +277,10 @@
 <div class="reader">
 <p class="title" title={book.path}>{book.title}</p>
 
-<button class="side boxed nav-back" onclick={close} title="Back to the folder (Esc)">BACK</button>
-<button class="side boxed nav-full" onclick={toggleFullscreen} title="Full screen (F)">FULL</button>
+<button class="side boxed nav-back" onclick={close} title="Back to the folder (Esc)">{t('BACK')}</button>
+<button class="side boxed nav-full" onclick={toggleFullscreen} title="Full screen (F)">{t('FULL')}</button>
 {#if paged}
-	<button class="side switch nav-manga" class:ink-mark-v={rtl} onclick={toggleManga} title="Manga: right to left (M)">MANGA</button>
+	<button class="side switch nav-manga" class:ink-mark-v={rtl} onclick={toggleManga} title="Manga: right to left (M)">{t('MANGA')}</button>
 	<button class="corner bottom-left" class:on={rtl} onclick={toggleManga} title="Manga: right to left (M)">MANGA</button>
 {/if}
 

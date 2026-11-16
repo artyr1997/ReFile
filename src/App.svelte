@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { t } from './lib/lang.svelte';
 	import { onMount, tick, untrack } from 'svelte';
 	import { invoke, convertFileSrc } from '@tauri-apps/api/core';
 	import { getCurrentWindow } from '@tauri-apps/api/window';
@@ -906,26 +907,26 @@
 
 {#if own && mode === 'play'}
 	<!-- PLAY's own window: RePlay's buttons (PREV / NEXT are the player's: lib/play/Play.svelte) -->
-	<button class="side switch switch-colm" class:ink-mark-v={playTab !== 'radio'} onclick={() => playPanel?.setTab('folder')} title="Songs here (1)">SONG</button>
-	<button class="side switch switch-list" class:ink-mark-v={playTab === 'radio'} onclick={() => playPanel?.setTab('radio')} title="Radio (3)">LIVE</button>
-	<button class="side plain nav-info" onclick={() => playPanel?.openInfo()} title="Info (I)">INFO</button>
-	<button class="side plain nav-del" onclick={() => playPanel?.setMini(true)} title="Mini player (M)">MINI</button>
+	<button class="side switch switch-colm" class:ink-mark-v={playTab !== 'radio'} onclick={() => playPanel?.setTab('folder')} title="Songs here (1)">{t('SONG')}</button>
+	<button class="side switch switch-list" class:ink-mark-v={playTab === 'radio'} onclick={() => playPanel?.setTab('radio')} title="Radio (3)">{t('LIVE')}</button>
+	<button class="side plain nav-info" onclick={() => playPanel?.openInfo()} title="Info (I)">{t('INFO')}</button>
+	<button class="side plain nav-del" onclick={() => playPanel?.setMini(true)} title="Mini player (M)">{t('MINI')}</button>
 {:else if own && mode === 'view'}
 	<!-- VIEW's own window: ReBook's buttons -->
-	<button class="side boxed nav-mid-left" onclick={() => openEntry()} disabled={!current || current.isDir} title="Read, look (Enter)">READ</button>
-	<button class="side boxed nav-mid-right" onclick={addFiles} title="Add pictures and books here (A)">ADD</button>
-	<button class="side plain nav-info" onclick={openInfo} title="Info (I)">INFO</button>
-	<button class="side plain nav-del" onclick={openDelete} disabled={!current} title="Move to Trash (Backspace)">DEL</button>
+	<button class="side boxed nav-mid-left" onclick={() => openEntry()} disabled={!current || current.isDir} title="Read, look (Enter)">{t('READ')}</button>
+	<button class="side boxed nav-mid-right" onclick={addFiles} title="Add pictures and books here (A)">{t('ADD')}</button>
+	<button class="side plain nav-info" onclick={openInfo} title="Info (I)">{t('INFO')}</button>
+	<button class="side plain nav-del" onclick={openDelete} disabled={!current} title="Move to Trash (Backspace)">{t('DEL')}</button>
 {:else if own && mode === 'text'}
 	<!-- TEXT's own window: write the text chosen, or a new one -->
-	<button class="side boxed nav-mid-left" onclick={() => openEntry()} disabled={!current || current.isDir} title="Edit (Enter)">EDIT</button>
-	<button class="side boxed nav-mid-right" onclick={openNewText} title="A new text here (N)">NEW</button>
-	<button class="side plain nav-info" onclick={openInfo} title="Info (I)">INFO</button>
-	<button class="side plain nav-del" onclick={openDelete} disabled={!current} title="Move to Trash (Backspace)">DEL</button>
+	<button class="side boxed nav-mid-left" onclick={() => openEntry()} disabled={!current || current.isDir} title="Edit (Enter)">{t('EDIT')}</button>
+	<button class="side boxed nav-mid-right" onclick={openNewText} title="A new text here (N)">{t('NEW')}</button>
+	<button class="side plain nav-info" onclick={openInfo} title="Info (I)">{t('INFO')}</button>
+	<button class="side plain nav-del" onclick={openDelete} disabled={!current} title="Move to Trash (Backspace)">{t('DEL')}</button>
 {:else}
 <!-- the view switch (the modes are on F / T / V / P; VIEW and TEXT always show columns) -->
-<button class="side switch switch-colm" class:ink-mark-v={layout === 'colm'} onclick={() => (view = 'colm')} title="Columns (C)">COLM</button>
-<button class="side switch switch-list" class:ink-mark-v={layout !== 'colm'} onclick={() => (view = 'list')} title="List (L)">LIST</button>
+<button class="side switch switch-colm" class:ink-mark-v={layout === 'colm'} onclick={() => (view = 'colm')} title="Columns (C)">{t('COLM')}</button>
+<button class="side switch switch-list" class:ink-mark-v={layout !== 'colm'} onclick={() => (view = 'list')} title="List (L)">{t('LIST')}</button>
 
 <!-- how busy the Mac is: the processor on the left, the memory on the right (in PLAY: PREV and NEXT) -->
 {#if load && mode !== 'play'}
@@ -941,8 +942,8 @@
 	<span class="gauge-number gauge-memory">{Math.round(load.memory * 100)}</span>
 {/if}
 
-<button class="side plain nav-info" onclick={() => (mode === 'play' ? playPanel?.openInfo() : openInfo())} title="Info (I)">INFO</button>
-<button class="side plain nav-del" onclick={openDelete} disabled={!current} title="Move to Trash (Backspace)">DEL</button>
+<button class="side plain nav-info" onclick={() => (mode === 'play' ? playPanel?.openInfo() : openInfo())} title="Info (I)">{t('INFO')}</button>
+<button class="side plain nav-del" onclick={openDelete} disabled={!current} title="Move to Trash (Backspace)">{t('DEL')}</button>
 {/if}
 <!-- a small window: no buttons, the keys only -->
 
@@ -1238,7 +1239,7 @@
 			{#if viewable.length > 1}
 				· {viewable.findIndex(e => e.path === shown!.entry.path) + 1} / {viewable.length}{/if}
 		</p>
-		<button class="side boxed nav-back" onclick={leaveViewer} title="Close (Esc)">CLOSE</button>
+		<button class="side boxed nav-back" onclick={leaveViewer} title="Close (Esc)">{t('CLOSE')}</button>
 		<button class="viewer-close" onclick={leaveViewer} title="Close (Esc)">CLOSE</button>
 	</div>
 {/if}

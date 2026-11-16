@@ -3,6 +3,7 @@ import '@fontsource/noto-sans-jp/300.css';
 import '@fontsource/noto-sans-jp/400.css';
 import '@fontsource/noto-sans-jp/500.css';
 import './app.css';
+import { followDeskLanguage } from './lib/lang.svelte';
 import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { mount } from 'svelte';
@@ -32,3 +33,6 @@ window.addEventListener(
 );
 
 export default app;
+
+// the side buttons in the desk's language (ReDesk › Settings › Language)
+followDeskLanguage();
