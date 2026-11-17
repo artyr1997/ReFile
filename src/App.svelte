@@ -114,6 +114,10 @@
 		// `text` is edited in place, `saved` is what the file holds
 		| { entry: Entry; kind: 'text'; text: string; saved: string; truncated: boolean };
 	let shown: Shown | null = $state(null);
+	// the reader or the viewer over the folder: glass hides what they cover (app.css)
+	$effect(() => {
+		document.documentElement.classList.toggle('covered', !!(shown || reading));
+	});
 	let textArea: HTMLTextAreaElement | undefined = $state();
 	let saveTimer: ReturnType<typeof setTimeout> | null = null;
 	let edited = false;

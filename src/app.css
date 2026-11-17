@@ -357,8 +357,9 @@ html.glass :is(.side.boxed, .nav-btn, .nav-button, .v-btn, .v-btn-left, .nav-edi
 	border-color: transparent !important;
 }
 
-/* on glass the reader and the viewer are see-through like the rest: what they cover is put out of sight */
-html.glass #app:has(> :is(.reader, .viewer)) > :not(.reader, .viewer) {
+/* on glass the reader and the viewer are see-through like the rest: what they cover is put out of sight
+   (html.covered, set by App while one is open) */
+html.glass.covered #app > :not(.reader, .viewer) {
 	visibility: hidden;
 }
 
@@ -367,4 +368,11 @@ html.glass .page::after,
 html.glass :is(.page, .view-image img, .look-picture, .file-look, .look-page, .thumb-page, .thumb-blank, .look-blank, .card) {
 	border-radius: 0 !important;
 	box-shadow: none !important;
+}
+
+/* on glass a text's page is a darker, frosted pane over the glass */
+html.glass :is(.look-page, .thumb-page) {
+	background: rgba(0, 0, 0, 0.32) !important;
+	-webkit-backdrop-filter: blur(24px);
+	backdrop-filter: blur(24px);
 }
