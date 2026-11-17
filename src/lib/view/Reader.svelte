@@ -5,7 +5,6 @@
 	// EPUB text reflows; epub.js shows two columns when the window is wide. The place is kept by the
 	// book's path (books.ts).
 	import { onMount, untrack } from 'svelte';
-	import { getCurrentWindow } from '@tauri-apps/api/window';
 	import type { PDFDocumentProxy } from 'pdfjs-dist';
 	import type { Book as EpubBook, Rendition, Location } from 'epubjs';
 	import PdfPage from './PdfPage.svelte';
@@ -18,7 +17,6 @@
 	let { book, onclose }: { book: Book; onclose: () => void } = $props();
 
 	let paged = $derived(book.format !== 'epub');
-	const win = getCurrentWindow();
 
 	let error = $state('');
 	let stageWidth = $state(0);
@@ -152,12 +150,13 @@
 		}
 	}
 
-	async function toggleFullscreen() {
-		await win.setFullscreen(!(await win.isFullscreen()));
+	// FULL: the pages fill the window, as a page does in ReSurf; the buttons, the title and the pager go
+	let full = $state(false);
+	function toggleFullscreen() {
+		full = !full;
 	}
 
 	async function close() {
-		if (await win.isFullscreen()) await win.setFullscreen(false);
 		onclose();
 	}
 
@@ -182,7 +181,8 @@
 		} else if (e.key === 'End' && paged) {
 			current = Math.max(spreads.length - 1, 0);
 		} else if (e.key === 'Escape') {
-			win.isFullscreen().then(full => (full ? win.setFullscreen(false) : onclose()));
+			if (full) full = false;
+			else onclose();
 		} else if (e.code === 'KeyF') {
 			toggleFullscreen();
 		}
@@ -274,11 +274,11 @@
 
 <svelte:window bind:innerWidth={winWidth} bind:innerHeight={winHeight} onkeydown={handleKey} />
 
-<div class="reader">
+<div class="reader" class:full>
 <p class="title" title={book.path}>{book.title}</p>
 
 <button class="side boxed nav-back" onclick={close} title="Back to the folder (Esc)">{t('BACK')}</button>
-<button class="side boxed nav-full" onclick={toggleFullscreen} title="Full screen (F)">{t('FULL')}</button>
+<button class="side boxed nav-full" onclick={toggleFullscreen} title="Pages fill the window (F, Esc back)">{t('FULL')}</button>
 {#if paged}
 	<button class="side switch nav-manga" class:ink-mark-v={rtl} onclick={toggleManga} title="Manga: right to left (M)">{t('MANGA')}</button>
 	<button class="corner bottom-left" class:on={rtl} onclick={toggleManga} title="Manga: right to left (M)">MANGA</button>
@@ -286,7 +286,7 @@
 
 <!-- a small window: the pages take it all -->
 <button class="corner top-right" onclick={close} title="Back to the folder (Esc)">BACK</button>
-<button class="corner bottom-right" onclick={toggleFullscreen} title="Full screen (F)">FULL</button>
+<button class="corner bottom-right" onclick={toggleFullscreen} title="Pages fill the window (F, Esc back)">FULL</button>
 
 <main class="stage fade-in" bind:clientWidth={stageWidth} bind:clientHeight={stageHeight}>
 	{#if error}
@@ -383,6 +383,10 @@
 		align-items: center;
 		justify-content: center;
 	}
+
+	/* FULL: the pages alone, filling the window */
+	.full .stage { top: 6px; bottom: 6px; left: 6px; right: 6px; }
+	.full :is(.title, .pager, .side, .corner) { visibility: hidden; }
 
 	.spread {
 		display: flex;
