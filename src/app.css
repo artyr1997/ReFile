@@ -363,7 +363,8 @@ html.glass #app:has(> :is(.reader, .viewer)) > :not(.reader, .viewer) {
 }
 
 /* on glass the pictures are square-cornered and cast no shadow, as the windows */
-html.glass :is(.page, .page::after, .view-image img, .look-picture, .file-look, .look-page, .thumb-page, .thumb-blank, .look-blank, .card) {
+html.glass .page::after,
+html.glass :is(.page, .view-image img, .look-picture, .file-look, .look-page, .thumb-page, .thumb-blank, .look-blank, .card) {
 	border-radius: 0 !important;
 	box-shadow: none !important;
 }
