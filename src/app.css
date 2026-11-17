@@ -376,3 +376,11 @@ html.glass :is(.look-page, .thumb-page) {
 	-webkit-backdrop-filter: blur(24px);
 	backdrop-filter: blur(24px);
 }
+
+/* the language turning: the buttons paint again each frame (lang.svelte.ts repaint) */
+html[data-flap='1'] :is(button, a, .side, .corner) {
+	text-shadow: 0 0 0 transparent;
+}
+html[data-flap='0'] :is(button, a, .side, .corner) {
+	text-shadow: 0 0 0.5px rgba(0, 0, 0, 0);
+}
