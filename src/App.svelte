@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { t } from './lib/lang.svelte';
+	import { t, tx } from './lib/lang.svelte';
 	import { onMount, tick, untrack } from 'svelte';
 	import { invoke, convertFileSrc } from '@tauri-apps/api/core';
 	import { getCurrentWindow } from '@tauri-apps/api/window';
@@ -1069,10 +1069,10 @@
 					{/if}
 				{/if}
 				<dl class="details">
-					<dt>Kind</dt><dd>{previewInfo.kind}</dd>
-					<dt>Size</dt><dd>{formatSize(sizeOf(previewInfo))}</dd>
-					<dt>Modified</dt><dd>{formatDate(previewInfo.modified)}</dd>
-					<dt>Created</dt><dd>{formatDate(previewInfo.created)}</dd>
+					<dt>{tx('Kind')}</dt><dd>{previewInfo.kind}</dd>
+					<dt>{tx('Size')}</dt><dd>{formatSize(sizeOf(previewInfo))}</dd>
+					<dt>{tx('Modified')}</dt><dd>{formatDate(previewInfo.modified)}</dd>
+					<dt>{tx('Created')}</dt><dd>{formatDate(previewInfo.created)}</dd>
 				</dl>
 			{/if}
 		</div>
@@ -1130,33 +1130,33 @@
 
 {#if popup === 'delete' && current}
 	<Popup onclose={closePopup}>
-		<p class="pop-text">Move “{current.name}” to Trash?</p>
+		<p class="pop-text">{tx('Move “{name}” to Trash?', { name: current.name })}</p>
 		{#if popupError}<p class="pop-error">{popupError}</p>{/if}
 		<div class="pop-actions">
-			<button class="pop-btn" onclick={moveToTrash}>YES</button>
-			<button class="pop-btn" onclick={closePopup}>NO</button>
+			<button class="pop-btn" onclick={moveToTrash}>{tx('YES')}</button>
+			<button class="pop-btn" onclick={closePopup}>{tx('NO')}</button>
 		</div>
 	</Popup>
 {:else if popup === 'newtext'}
 	<Popup onclose={closePopup}>
-		<p class="pop-heading">NEW TEXT</p>
+		<p class="pop-heading">{tx('NEW TEXT')}</p>
 		<div class="pop-divider"></div>
 		<input bind:this={newNameInput} bind:value={newName} class="name-input" type="text" maxlength="255" />
 		{#if popupError}<p class="pop-error">{popupError}</p>{/if}
 		<div class="pop-actions">
-			<button class="pop-btn" onclick={createText}>CREATE</button>
-			<button class="pop-btn" onclick={closePopup}>CANCEL</button>
+			<button class="pop-btn" onclick={createText}>{tx('CREATE')}</button>
+			<button class="pop-btn" onclick={closePopup}>{tx('CANCEL')}</button>
 		</div>
 	</Popup>
 {:else if popup === 'new'}
 	<Popup onclose={closePopup}>
-		<p class="pop-heading">NEW FOLDER</p>
+		<p class="pop-heading">{tx('NEW FOLDER')}</p>
 		<div class="pop-divider"></div>
 		<input bind:this={newNameInput} bind:value={newName} class="name-input" type="text" maxlength="255" />
 		{#if popupError}<p class="pop-error">{popupError}</p>{/if}
 		<div class="pop-actions">
-			<button class="pop-btn" onclick={createFolder}>CREATE</button>
-			<button class="pop-btn" onclick={closePopup}>CANCEL</button>
+			<button class="pop-btn" onclick={createFolder}>{tx('CREATE')}</button>
+			<button class="pop-btn" onclick={closePopup}>{tx('CANCEL')}</button>
 		</div>
 	</Popup>
 {:else if popup === 'actions' && current}
@@ -1170,7 +1170,7 @@
 					onclick={() => runAction(action.id)}
 					onmouseenter={() => (selectedAction = i)}
 				>
-					<span class:ink-mark={i === selectedAction}>{action.label}</span>
+					<span class:ink-mark={i === selectedAction}>{tx(action.label)}</span>
 				</button>
 			{/each}
 		</div>
@@ -1178,13 +1178,13 @@
 	</Popup>
 {:else if popup === 'rename' && current}
 	<Popup onclose={closePopup}>
-		<p class="pop-heading">RENAME</p>
+		<p class="pop-heading">{tx('RENAME')}</p>
 		<div class="pop-divider"></div>
 		<input bind:this={renameInput} bind:value={renameValue} class="name-input" type="text" maxlength="255" />
 		{#if popupError}<p class="pop-error">{popupError}</p>{/if}
 		<div class="pop-actions">
-			<button class="pop-btn" onclick={renameItem}>RENAME</button>
-			<button class="pop-btn" onclick={closePopup}>CANCEL</button>
+			<button class="pop-btn" onclick={renameItem}>{tx('RENAME')}</button>
+			<button class="pop-btn" onclick={closePopup}>{tx('CANCEL')}</button>
 		</div>
 	</Popup>
 {:else if popup === 'info'}
@@ -1194,24 +1194,24 @@
 		{#if info}
 			<p class="info-name"><span class="ink-mark">{info.name}</span></p>
 			<dl class="details info-details">
-				<dt>Kind</dt><dd>{info.kind}</dd>
+				<dt>{tx('Kind')}</dt><dd>{info.kind}</dd>
 				{#if info.isDir}
-					<dt>Items</dt><dd>{info.items ?? '--'}</dd>
+					<dt>{tx('Items')}</dt><dd>{info.items ?? '--'}</dd>
 				{/if}
-				<dt>Size</dt><dd>{formatSize(sizeOf(info))}</dd>
-				<dt>Created</dt><dd>{formatDate(info.created)}</dd>
-				<dt>Modified</dt><dd>{formatDate(info.modified)}</dd>
-				<dt>Where</dt><dd class="path">{parentOf(info.path) ?? '/'}</dd>
+				<dt>{tx('Size')}</dt><dd>{formatSize(sizeOf(info))}</dd>
+				<dt>{tx('Created')}</dt><dd>{formatDate(info.created)}</dd>
+				<dt>{tx('Modified')}</dt><dd>{formatDate(info.modified)}</dd>
+				<dt>{tx('Where')}</dt><dd class="path">{parentOf(info.path) ?? '/'}</dd>
 			</dl>
 			<div class="pop-divider"></div>
 		{/if}
 		<div class="shortcuts">
 			{#each shortcuts as [key, desc]}
-				<span class="key">{key}</span><span class="desc">{desc}</span>
+				<span class="key">{tx(key)}</span><span class="desc">{tx(desc)}</span>
 			{/each}
 		</div>
 		<div class="pop-divider"></div>
-		<p class="pop-footer">local · private · offline</p>
+		<p class="pop-footer">{tx('local · private · offline')}</p>
 	</Popup>
 {/if}
 

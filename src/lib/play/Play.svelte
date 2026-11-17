@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { t } from '../lang.svelte';
+	import { t, tx } from '../lang.svelte';
 	// PLAY (what RePlay was): three views (1 / 2 / 3; no tabs shown), FOLDER (ReFile's own list, of music and
 	// videos only: App.svelte), SONGS (every song of the music folder, A to Z) and RADIO (genres and
 	// their stations); the player under them all, PREV / NEXT on the sides. A small window is the mini
@@ -519,14 +519,14 @@
 		<div class="menu">
 			{#each actions as action, i}
 				<button class="menu-item" onclick={() => action.run()} onmouseenter={() => (selectedAction = i)}>
-					<span class:ink-mark={i === selectedAction}>{action.label}</span>
+					<span class:ink-mark={i === selectedAction}>{tx(action.label)}</span>
 				</button>
 			{/each}
 		</div>
 	</Popup>
 {:else if popup === 'queue'}
 	<Popup onclose={closePopup}>
-		<p class="pop-heading">UP NEXT</p>
+		<p class="pop-heading">{tx('UP NEXT')}</p>
 		<div class="pop-divider"></div>
 		{#if upcoming.length}
 			<div class="queue" use:scrollFade>
@@ -535,23 +535,23 @@
 				{/each}
 			</div>
 		{:else}
-			<p class="pop-note">Nothing after this song.</p>
+			<p class="pop-note">{tx('Nothing after this song.')}</p>
 		{/if}
 	</Popup>
 {:else if popup === 'info'}
 	<Popup onclose={closePopup}>
 		<p class="pop-heading">RE:FILE · PLAY</p>
 		<div class="pop-divider"></div>
-		<p class="pop-text">{allTracks.length} {allTracks.length === 1 ? 'song' : 'songs'}</p>
-		<p class="pop-note">{folder ?? 'No folder chosen'}</p>
+		<p class="pop-text">{tx(allTracks.length === 1 ? '{n} song' : '{n} songs', { n: allTracks.length })}</p>
+		<p class="pop-note">{folder ?? tx('No folder chosen')}</p>
 		<div class="pop-actions">
-			<button class="pop-btn" onclick={chooseFolder}>FOLDER</button>
-			<button class="pop-btn" onclick={() => { api.rescan(); closePopup(); }}>RESCAN</button>
+			<button class="pop-btn" onclick={chooseFolder}>{tx('FOLDER')}</button>
+			<button class="pop-btn" onclick={() => { api.rescan(); closePopup(); }}>{tx('RESCAN')}</button>
 		</div>
 		<div class="pop-divider"></div>
 		<div class="shortcuts">
 			{#each [...playKeys, ...shortcuts] as [k, desc]}
-				<span class="key">{k}</span><span class="desc">{desc}</span>
+				<span class="key">{tx(k)}</span><span class="desc">{tx(desc)}</span>
 			{/each}
 		</div>
 		<div class="pop-divider"></div>

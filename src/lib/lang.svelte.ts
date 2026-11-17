@@ -39,6 +39,67 @@ const japanese: Record<string, string> = {
 	'NEXT SPACE': '次の場所',
 };
 
+// the popups' words: headings, texts, their buttons, the keys they list
+const japaneseText: Record<string, string> = {
+	'Move “{name}” to Trash?': '「{name}」をゴミ箱に入れますか？',
+	'YES': 'はい',
+	'NO': 'いいえ',
+	'NEW TEXT': '新しいテキスト',
+	'NEW FOLDER': '新しいフォルダ',
+	'CREATE': '作成',
+	'CANCEL': 'キャンセル',
+	'RENAME': '名前を変更',
+	'Open': '開く',
+	'Rename': '名前を変更',
+	'Duplicate': '複製',
+	'Compress': '圧縮',
+	'Copy path': 'パスをコピー',
+	'Show in Finder': 'Finderで表示',
+	'Info': '情報',
+	'Move to Trash': 'ゴミ箱に入れる',
+	'Kind': '種類',
+	'Items': '項目数',
+	'Size': 'サイズ',
+	'Created': '作成日',
+	'Modified': '変更日',
+	'Where': '場所',
+	'local · private · offline': 'ローカル · 非公開 · オフライン',
+	'This folder in FILE / TEXT / VIEW / PLAY': 'このフォルダを FILE / TEXT / VIEW / PLAY で',
+	'The folder selected, all inside it (at any depth), in a new window': '選んだフォルダの中身をすべて（どの深さも）新しいウィンドウで',
+	'New window': '新しいウィンドウ',
+	'Select': '選ぶ',
+	'Open (a file: in a new window, in its mode)': '開く（ファイルは新しいウィンドウで、その種類のモードで）',
+	'A quick look at a picture or text, here': '画像やテキストをここでちらっと見る',
+	'Save the text (it saves itself too)': 'テキストを保存（自動でも保存されます）',
+	'Back': '戻る',
+	'Search': '検索',
+	'Columns / List': '列 / 一覧',
+	'Sort by name / kind / date / size (again: the other way)': '名前 / 種類 / 日付 / サイズで並べる（もう一度で逆順）',
+	'New folder': '新しいフォルダ',
+	'Actions': '操作',
+	'E / right click': 'E / 右クリック',
+	'Space': 'スペース',
+	'Play': '再生',
+	'Play next': '次に再生',
+	'Add to queue': '再生待ちに追加',
+	'UP NEXT': '次に再生',
+	'Nothing after this song.': 'この曲の後には何もありません。',
+	'{n} song': '{n}曲',
+	'{n} songs': '{n}曲',
+	'No folder chosen': 'フォルダが選ばれていません',
+	'FOLDER': 'フォルダ',
+	'RESCAN': '再スキャン',
+	'Folder / songs / radio': 'フォルダ / 曲 / ラジオ',
+	'Play / pause': '再生 / 一時停止',
+	"Previous / next song (the Mac's media keys)": '前 / 次の曲（Macのメディアキー）',
+	'Play (a video: here)': '再生（動画はここで）',
+	'Genres / stations (radio)': 'ジャンル / 局（ラジオ）',
+	'Keep a station': '局を保存',
+	'Shuffle / repeat': 'シャッフル / リピート',
+	'Up next': '次に再生',
+	'Mini player': 'ミニプレーヤー',
+};
+
 export const language = $state({ japanese: false });
 
 // The language turning, as on a departures board: each letter runs through others (Latin and katakana)
@@ -61,6 +122,13 @@ export function t(word: string, as?: string): string {
 			return POOL[Math.abs(hash) % POOL.length];
 		})
 		.join('');
+}
+
+/** the popups' words (any length) in the desk's language; {name} in them is filled from `values` */
+export function tx(text: string, values?: Record<string, string | number>): string {
+	let out = language.japanese ? (japaneseText[text] ?? text) : text;
+	if (values) for (const [key, value] of Object.entries(values)) out = out.replaceAll(`{${key}}`, String(value));
+	return out;
 }
 
 let flapTimer: ReturnType<typeof setInterval> | null = null;
