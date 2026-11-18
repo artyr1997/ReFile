@@ -572,6 +572,10 @@
 
 		.turn { font-size: 20px; }
 	}
+	/* the words as large as in a small window, whatever its size (as in all the Re apps) */
+	.title {
+		font-size: 16px;
+	}
 
 	.error {
 		font-family: 'Kurale', serif;

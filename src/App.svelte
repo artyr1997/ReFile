@@ -1648,6 +1648,16 @@
 			pointer-events: none;
 		}
 	}
+	/* the words as large as in a small window, whatever its size (as in all the Re apps) */
+	.title {
+		font-size: 18px;
+	}
+	.cell {
+		font-size: 14px;
+	}
+	.search {
+		font-size: 18px;
+	}
 
 	@media (max-width: 559px) {
 		.table-row { grid-template-columns: minmax(0, 1fr) 80px; }
@@ -1929,6 +1939,10 @@
 		.viewer-close:hover {
 			opacity: 1;
 		}
+	}
+	/* the words as large as in a small window, whatever its size (as in all the Re apps) */
+	.view-foot {
+		font-size: 14px;
 	}
 
 	/* ── popups ── */

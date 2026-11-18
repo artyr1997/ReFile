@@ -852,6 +852,10 @@
 
 		.now { font-size: 18px; }
 	}
+	/* the words as large as in a small window, whatever its size (as in all the Re apps) */
+	.now {
+		font-size: 18px;
+	}
 
 	/* ── SCAN, as ReFile's toast ── */
 	.toast {
