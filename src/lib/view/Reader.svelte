@@ -336,9 +336,9 @@
 </main>
 
 <div class="pager">
-	<button class="turn" onclick={goLeft} aria-label={rtl ? 'Next page' : 'Previous page'}>←</button>
+	<button class="turn" onclick={goLeft} aria-label={rtl ? 'Next page' : 'Previous page'}>&lt;</button>
 	<span class="label">{label}</span>
-	<button class="turn" onclick={goRight} aria-label={rtl ? 'Previous page' : 'Next page'}>→</button>
+	<button class="turn" onclick={goRight} aria-label={rtl ? 'Previous page' : 'Next page'}>&gt;</button>
 </div>
 </div>
 

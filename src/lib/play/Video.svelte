@@ -171,9 +171,9 @@
 	{#if !full}
 		<p class="title" title={path}>{folder}</p>
 		<div class="pager">
-			<button class="turn" onclick={() => step(-1)} disabled={index === 0} aria-label="Previous" title="Previous video (⇧←)">←</button>
+			<button class="turn" onclick={() => step(-1)} disabled={index === 0} aria-label="Previous" title="Previous video (⇧←)">&lt;</button>
 			<p class="path" title={name}>{name}</p>
-			<button class="turn" onclick={() => step(1)} disabled={index === paths.length - 1} aria-label="Next" title="Next video (⇧→)">→</button>
+			<button class="turn" onclick={() => step(1)} disabled={index === paths.length - 1} aria-label="Next" title="Next video (⇧→)">&gt;</button>
 		</div>
 	{/if}
 </div>

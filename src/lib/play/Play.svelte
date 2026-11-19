@@ -405,11 +405,11 @@
 			</div>
 		{/if}
 		<div class="mini-controls">
-			<button class="mini-btn arrow" onclick={previous} title="Previous (⏮)" aria-label="Previous">←</button>
+			<button class="mini-btn arrow" onclick={previous} title="Previous (⏮)" aria-label="Previous">&lt;</button>
 			<button class="play" onclick={togglePlay} title="Play / pause (Space)">
 				<span class="ink-mark">{status.playing ? 'PAUSE' : 'PLAY'}</span>
 			</button>
-			<button class="mini-btn arrow" onclick={next} title="Next (⏭)" aria-label="Next">→</button>
+			<button class="mini-btn arrow" onclick={next} title="Next (⏭)" aria-label="Next">&gt;</button>
 		</div>
 	</main>
 {:else}
@@ -502,9 +502,14 @@
 				<span class="clock">{formatTime(status.track?.durationMs ?? 0)}</span>
 			</div>
 		{/if}
-		<button class="play" onclick={togglePlay} title="Play / pause (Space)">
-			<span class="ink-mark">{status.playing ? 'PAUSE' : 'PLAY'}</span>
-		</button>
+		<!-- in a small window the side PREV / NEXT give way to < and > on either side of it -->
+		<div class="player-controls">
+			<button class="mini-btn arrow small-only" onclick={previous} title="Previous (⏮)" aria-label="Previous">&lt;</button>
+			<button class="play" onclick={togglePlay} title="Play / pause (Space)">
+				<span class="ink-mark">{status.playing ? 'PAUSE' : 'PLAY'}</span>
+			</button>
+			<button class="mini-btn arrow small-only" onclick={next} title="Next (⏭)" aria-label="Next">&gt;</button>
+		</div>
 	</footer>
 {/if}
 
@@ -828,6 +833,15 @@
 
 	.mini-btn:hover { opacity: 1; }
 
+	.player-controls {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 1.6rem;
+	}
+
+	.small-only { display: none; }
+
 	/* ── a small window (not yet the mini player's): the same, closer to the edges ── */
 	@media (max-width: 759px), (max-height: 559px) {
 		.songs,
@@ -851,6 +865,8 @@
 		}
 
 		.now { font-size: 18px; }
+
+		.small-only { display: inline-block; }
 	}
 	/* the words as large as in a small window, whatever its size (as in all the Re apps) */
 	.now {
