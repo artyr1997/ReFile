@@ -924,7 +924,7 @@
 {:else if own && mode === 'text'}
 	<!-- TEXT's own window: write the text chosen, or a new one -->
 	<button class="side boxed nav-mid-left" onclick={() => openEntry()} disabled={!current || current.isDir} title="Edit (Enter)">{t('EDIT')}</button>
-	<button class="side boxed nav-mid-right" onclick={openNewText} title="A new text here (N)">{t('NEW')}</button>
+	<button class="side boxed nav-mid-right" onclick={openNewText} title="A new text here (N)">{t('NOVA')}</button>
 	<button class="side plain nav-info" onclick={openInfo} title="Info (I)">{t('INFO')}</button>
 	<button class="side plain nav-del" onclick={openDelete} disabled={!current} title="Move to Trash (Backspace)">{t('DEL')}</button>
 {:else}
