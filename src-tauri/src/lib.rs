@@ -754,16 +754,6 @@ fn listen_for_desk_language(app: &tauri::AppHandle) {
 
 // ── glass: ReDesk's Settings › Glass windows (an experiment) ──
 
-/// Whether ReDesk keeps the windows as glass, read from its settings.
-#[tauri::command]
-fn desk_glass() -> bool {
-    std::process::Command::new("/usr/bin/defaults")
-        .args(["read", "com.artursavytskyi.redesk", "glass"])
-        .output()
-        .map(|out| String::from_utf8_lossy(&out.stdout).trim() == "1")
-        .unwrap_or(false)
-}
-
 /// The window as glass, or paper again: the system's blur of what is behind it (the dark HUD material, as
 /// the desk's white words read on it) under the page, inside the web view, so its rounded corners round it
 /// too. The page itself goes clear (html.glass in app.css). `sharp`: on glass the window's corners are square.
@@ -830,44 +820,6 @@ fn set_glass(webview: tauri::Webview, on: bool, sharp: bool) {
     });
 }
 
-#[cfg(target_os = "macos")]
-static GLASS_APP: std::sync::OnceLock<tauri::AppHandle> = std::sync::OnceLock::new();
-
-/// ReDesk says when the windows turn to glass or back (a distributed notification, "1" or "0" as its
-/// object): every window gets a `glass` event.
-#[cfg(target_os = "macos")]
-fn listen_for_desk_glass(app: &tauri::AppHandle) {
-    use block2::RcBlock;
-    use objc2::runtime::AnyObject;
-    use objc2::{class, msg_send};
-
-    let _ = GLASS_APP.set(app.clone());
-    let handler = RcBlock::new(|note: *mut AnyObject| {
-        // SAFETY: on the main queue; the object ReDesk sends is a string
-        unsafe {
-            let object: *mut AnyObject = msg_send![note, object];
-            let on = if object.is_null() {
-                false
-            } else {
-                let utf8: *const std::ffi::c_char = msg_send![object, UTF8String];
-                !utf8.is_null() && std::ffi::CStr::from_ptr(utf8).to_bytes() == b"1"
-            };
-            if let Some(app) = GLASS_APP.get() {
-                let _ = tauri::Emitter::emit(app, "glass", on);
-            }
-        }
-    });
-    // SAFETY: AppKit's own objects, on the main thread (setup); the center keeps the block
-    unsafe {
-        let center: *mut AnyObject = msg_send![class!(NSDistributedNotificationCenter), defaultCenter];
-        let name: *mut AnyObject =
-            msg_send![class!(NSString), stringWithUTF8String: c"com.artursavytskyi.re.glass".as_ptr()];
-        let queue: *mut AnyObject = msg_send![class!(NSOperationQueue), mainQueue];
-        let _: *mut AnyObject = msg_send![center, addObserverForName: name, object: std::ptr::null::<AnyObject>(),
-                                          queue: queue, usingBlock: &*handler];
-    }
-}
-
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -888,7 +840,6 @@ pub fn run() {
             listen_for_desk_corners(_app.handle());
             listen_for_desk_language(_app.handle());
             #[cfg(target_os = "macos")]
-            listen_for_desk_glass(_app.handle());
             #[cfg(target_os = "macos")]
             {
                 use tauri::Manager;
@@ -901,7 +852,6 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             desk_language,
-            desk_glass,
             set_glass,
             window_ready,
             new_window,
