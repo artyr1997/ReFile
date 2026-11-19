@@ -407,7 +407,7 @@
 		<div class="mini-controls">
 			<button class="mini-btn arrow" onclick={previous} title="Previous (⏮)" aria-label="Previous">&lt;</button>
 			<button class="play" onclick={togglePlay} title="Play / pause (Space)">
-				<span class="ink-mark">{status.playing ? 'PAUSE' : 'PLAY'}</span>
+				<span class="ink-mark">{status.playing ? 'STOP' : 'PLAY'}</span>
 			</button>
 			<button class="mini-btn arrow" onclick={next} title="Next (⏭)" aria-label="Next">&gt;</button>
 		</div>
@@ -504,7 +504,7 @@
 		<div class="player-controls">
 			<button class="mini-btn arrow" onclick={previous} title="Previous (⏮)" aria-label="Previous">&lt;</button>
 			<button class="play" onclick={togglePlay} title="Play / pause (Space)">
-				<span class="ink-mark">{status.playing ? 'PAUSE' : 'PLAY'}</span>
+				<span class="ink-mark">{status.playing ? 'STOP' : 'PLAY'}</span>
 			</button>
 			<button class="mini-btn arrow" onclick={next} title="Next (⏭)" aria-label="Next">&gt;</button>
 		</div>
