@@ -17,6 +17,7 @@
 		tab = $bindable('folder'),
 		query = $bindable(''),
 		mini,
+		chosen = $bindable(false),
 		toast,
 		shortcuts,
 	}: {
@@ -24,6 +25,8 @@
 		query: string;
 		/** a tiny window: the mini player */
 		mini: boolean;
+		/** MINI (M): the mini player in the window as it is, not made smaller */
+		chosen: boolean;
 		toast: (text: string) => void;
 		/** ReFile's own keys, for INFO */
 		shortcuts: string[][];
@@ -42,11 +45,11 @@
 	let track: Track | undefined = $derived(tracks[ti]);
 	let progress = $derived(status.track && status.track.durationMs ? Math.min(1, status.positionMs / status.track.durationMs) : 0);
 
-	const MINI = { width: 440, height: 300 };
+	// MINI (M): the window keeps its size; out of a window made tiny by hand, it grows back to the full one
 	const FULL = { width: 1440, height: 900 };
 	export async function setMini(on: boolean) {
-		const size = on ? MINI : FULL;
-		await getCurrentWindow().setSize(new LogicalSize(size.width, size.height));
+		chosen = on;
+		if (!on && (window.innerWidth < 520 || window.innerHeight < 420)) await getCurrentWindow().setSize(new LogicalSize(FULL.width, FULL.height));
 	}
 
 	async function loadLibrary() {

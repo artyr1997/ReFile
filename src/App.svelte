@@ -64,9 +64,12 @@
 	let winWidth = $state(window.innerWidth);
 	let winHeight = $state(window.innerHeight);
 	let tiny = $derived(winWidth < 520 || winHeight < 420);
+	// MINI (M) in a larger one: the window keeps its size, the mini player alone in its middle
+	let miniChosen = $state(false);
+	let mini = $derived(mode === 'play' && (tiny || miniChosen));
 	let playPanel: ReturnType<typeof Play> | undefined = $state();
 	// the browser shows, but in PLAY's songs and radio, and its mini player
-	let browsing = $derived(mode !== 'play' || (playTab === 'folder' && !tiny));
+	let browsing = $derived(mode !== 'play' || (playTab === 'folder' && !mini));
 
 	// VIEW: a book being read; PLAY: videos being shown
 	let reading: Book | null = $state(null);
@@ -909,7 +912,10 @@
 
 <WindowControls />
 
-{#if own && mode === 'play'}
+{#if mode === 'play' && mini}
+	<!-- the mini player: MINI alone, inked, back to the list (M) -->
+	{#if !tiny}<button class="side plain nav-del ink-mark-v" onclick={() => playPanel?.setMini(false)} title="Back from the mini player (M)">{t('MINI')}</button>{/if}
+{:else if own && mode === 'play'}
 	<!-- PLAY's own window: RePlay's buttons (PREV / NEXT are the player's: lib/play/Play.svelte) -->
 	<button class="side switch switch-colm" class:ink-mark-v={playTab !== 'radio'} onclick={() => playPanel?.setTab('folder')} title="Songs here (1)">{t('SONG')}</button>
 	<button class="side switch switch-list" class:ink-mark-v={playTab === 'radio'} onclick={() => playPanel?.setTab('radio')} title="Radio (3)">{t('LIVE')}</button>
@@ -952,7 +958,7 @@
 <!-- a small window: no buttons, the keys only -->
 
 {#if mode === 'play'}
-	<Play bind:this={playPanel} bind:tab={playTab} bind:query mini={tiny} toast={showToast} {shortcuts} />
+	<Play bind:this={playPanel} bind:tab={playTab} bind:query mini={mini} bind:chosen={miniChosen} toast={showToast} {shortcuts} />
 {/if}
 
 <main class="browser fade-in" class:play={mode === 'play'} class:hidden={!browsing}>
@@ -1107,7 +1113,7 @@
 </main>
 
 <!-- the search: under the list; in PLAY, the title (the folder, or what the tab holds) -->
-{#if !(mode === 'play' && tiny)}
+{#if !mini}
 	<input
 		bind:this={searchInput}
 		bind:value={query}
