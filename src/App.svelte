@@ -913,8 +913,8 @@
 <WindowControls />
 
 {#if mode === 'play' && mini}
-	<!-- the mini player: MINI alone, inked, back to the list (M) -->
-	{#if !tiny}<button class="side plain nav-del ink-mark-v" onclick={() => playPanel?.setMini(false)} title="Back from the mini player (M)">{t('MINI')}</button>{/if}
+	<!-- the mini player: MINI alone, back to the list (M) -->
+	{#if !tiny}<button class="side plain nav-del" onclick={() => playPanel?.setMini(false)} title="Back from the mini player (M)">{t('MINI')}</button>{/if}
 {:else if own && mode === 'play'}
 	<!-- PLAY's own window: RePlay's buttons (PREV / NEXT are the player's: lib/play/Play.svelte) -->
 	<button class="side switch switch-colm" class:ink-mark-v={playTab !== 'radio'} onclick={() => playPanel?.setTab('folder')} title="Songs here (1)">{t('SONG')}</button>
