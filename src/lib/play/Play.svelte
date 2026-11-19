@@ -2,7 +2,7 @@
 	import { t, tx } from '../lang.svelte';
 	// PLAY (what RePlay was): three views (1 / 2 / 3; no tabs shown), FOLDER (ReFile's own list, of music and
 	// videos only: App.svelte), SONGS (every song of the music folder, A to Z) and RADIO (genres and
-	// their stations); the player under them all, PREV / NEXT on the sides. A small window is the mini
+	// their stations); the player under them all, < and > beside PLAY. A small window is the mini
 	// player. App.svelte hands the keys here first (key()).
 	import { onMount, tick } from 'svelte';
 	import { listen } from '@tauri-apps/api/event';
@@ -414,8 +414,6 @@
 	</main>
 {:else}
 	<!-- no tabs: 1 / 2 / 3 (and SONG / LIVE in PLAY's own window) choose the folder, the songs, the radio -->
-	<button class="side boxed nav-prev" onclick={previous} title="Previous (⏮)">{t('PREV')}</button>
-	<button class="side boxed nav-next" onclick={next} title="Next (⏭)">{t('NEXT')}</button>
 
 	{#if tab === 'radio'}
 		<div class="radio">
@@ -484,11 +482,11 @@
 			<p class="now error">{status.error}</p>
 		{:else if status.station}
 			<p class="now">
-				{#if status.onAir}<span class="now-title">{status.onAir}</span><span class="now-artist"> — {status.station.name}</span>
+				{#if status.onAir}<span class="now-title">{status.onAir}</span><span class="now-artist">{` - ${status.station.name}`}</span>
 				{:else}<span class="now-title">{status.station.name}</span>{/if}
 			</p>
 		{:else if status.track}
-			<p class="now"><span class="now-title">{status.track.title}</span><span class="now-artist"> — {status.track.artist || status.track.albumArtist}</span></p>
+			<p class="now"><span class="now-title">{status.track.title}</span><span class="now-artist">{` - ${status.track.artist || status.track.albumArtist}`}</span></p>
 		{:else}
 			<p class="now idle">Nothing playing.</p>
 		{/if}
@@ -502,13 +500,13 @@
 				<span class="clock">{formatTime(status.track?.durationMs ?? 0)}</span>
 			</div>
 		{/if}
-		<!-- in a small window the side PREV / NEXT give way to < and > on either side of it -->
+		<!-- the previous / next song or station: < and > on either side of it -->
 		<div class="player-controls">
-			<button class="mini-btn arrow small-only" onclick={previous} title="Previous (⏮)" aria-label="Previous">&lt;</button>
+			<button class="mini-btn arrow" onclick={previous} title="Previous (⏮)" aria-label="Previous">&lt;</button>
 			<button class="play" onclick={togglePlay} title="Play / pause (Space)">
 				<span class="ink-mark">{status.playing ? 'PAUSE' : 'PLAY'}</span>
 			</button>
-			<button class="mini-btn arrow small-only" onclick={next} title="Next (⏭)" aria-label="Next">&gt;</button>
+			<button class="mini-btn arrow" onclick={next} title="Next (⏭)" aria-label="Next">&gt;</button>
 		</div>
 	</footer>
 {/if}
@@ -565,8 +563,6 @@
 {/if}
 
 <style>
-	.nav-prev { left: calc(6.25% - 28px); top: 50%; transform: translateY(-50%); }
-	.nav-next { right: calc(6.25% - 28px); top: 50%; transform: translateY(-50%); }
 
 	/* ── songs and the radio: between the search and the player ── */
 	.songs,
@@ -840,8 +836,6 @@
 		gap: 1.6rem;
 	}
 
-	.small-only { display: none; }
-
 	/* ── a small window (not yet the mini player's): the same, closer to the edges ── */
 	@media (max-width: 759px), (max-height: 559px) {
 		.songs,
@@ -865,8 +859,6 @@
 		}
 
 		.now { font-size: 18px; }
-
-		.small-only { display: inline-block; }
 	}
 	/* the words as large as in a small window, whatever its size (as in all the Re apps) */
 	.now {

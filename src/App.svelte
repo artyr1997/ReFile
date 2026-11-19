@@ -932,7 +932,7 @@
 <button class="side switch switch-colm" class:ink-mark-v={layout === 'colm'} onclick={() => (view = 'colm')} title="Columns (C)">{t('COLM')}</button>
 <button class="side switch switch-list" class:ink-mark-v={layout !== 'colm'} onclick={() => (view = 'list')} title="List (L)">{t('LIST')}</button>
 
-<!-- how busy the Mac is: the processor on the left, the memory on the right (in PLAY: PREV and NEXT) -->
+<!-- how busy the Mac is: the processor on the left, the memory on the right (not in PLAY) -->
 {#if load && mode !== 'play'}
 	<div class="gauge gauge-cpu" title="Processor {Math.round(load.cpu * 100)}%">
 		<div class="gauge-used" style="height: {Math.min(load.cpu, 1) * 100}%"></div>
