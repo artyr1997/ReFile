@@ -2,7 +2,7 @@ import AppKit
 
 // PLAY: three views (1 / 2 / 3; no tabs shown): FOLDER (ReFile's own list, of music and videos only),
 // SONGS (every song of the music folder) and RADIO (genres and their stations); the player under them all,
-// < and > beside PLAY. A tiny window (or MINI, M) is the mini player.
+// < and > beside PLAY. A tiny window (or FULL, ⌘F) is the player alone, filling the window.
 
 final class PlayView: Flipped {
     private weak var main: FileView?
@@ -137,7 +137,7 @@ final class PlayView: Flipped {
         }
     }
 
-    /// MINI (M): the mini player in the window as it is; out of a window made tiny by hand, it grows back
+    /// FULL (⌘F): the player alone, filling the window as it is; out of a window made tiny by hand, it grows back
     func setMini(_ on: Bool) {
         chosenMini = on
         if !on, let w = window, w.frame.width < 520 || w.frame.height < 420 {
@@ -426,7 +426,7 @@ final class PlayView: Flipped {
         let playKeys: [(String, String)] = [
             ("1 / 2 / 3", "Folder / songs / radio"), ("Space", "Play / pause"), ("⏮ / ⏭", "Previous / next song (the Mac's media keys)"),
             ("Enter", "Play (a video: here)"), ("← →", "Genres / stations (radio)"), ("K", "Keep a station"), ("S / R", "Shuffle / repeat"),
-            ("Q", "Up next"), ("E / right click", "Actions"), ("M", "Mini player"),
+            ("Q", "Up next"), ("E / right click", "Actions"), ("⌘F", "The player fills the window"),
         ]
         let n = all.count
         let views: [NSView] = [
@@ -461,9 +461,10 @@ final class PlayView: Flipped {
 
     func key(_ e: NSEvent, typing: Bool) -> Bool {
         let mods = e.modifierFlags.intersection([.command, .control, .option, .shift])
+        // ⌘F: the player fills the window, or the lists come back
+        if e.keyCode == 3 && mods == .command { setMini(!mini); return true }
         if mini {
             if e.keyCode == 49 && mods.isEmpty { music.togglePlay(); return true }
-            if e.keyCode == 46 && mods.isEmpty { setMini(false); return true }
             return false
         }
         if typing {
@@ -490,7 +491,6 @@ final class PlayView: Flipped {
             let r = music.cycleRepeat()
             main?.showToast(["all": "REPT", "one": "ONE", "off": "ONCE"][r.rawValue] ?? "")
         case 12: openQueue()
-        case 46: setMini(true)
         case 34: openInfo()
         default:
             if tab == "radio" {

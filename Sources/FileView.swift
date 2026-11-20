@@ -72,7 +72,7 @@ final class FileView: Flipped {
         if let s = Saved.json("sort") as? [String: Any], let key = s["key"] as? String, let way = s["way"] as? Int,
            ["name", "kind", "date", "size"].contains(key), way == 1 || way == -1 { sort = (key, way) }
 
-        for (word, as_) in [("COLM", nil), ("LIST", nil), ("INFO", nil), ("DEL", nil), ("SONG", nil), ("LIVE", nil), ("MINI", nil),
+        for (word, as_) in [("COLM", nil), ("LIST", nil), ("INFO", nil), ("DEL", nil), ("SONG", nil), ("LIVE", nil), ("FULL", "PLAYER FULL"),
                             ("READ", nil), ("ADD", nil), ("EDIT", nil), ("NOVA", nil)] as [(String, String?)] {
             let b = SideButton(word, as: as_) {}
             sides[word] = b
@@ -90,8 +90,8 @@ final class FileView: Flipped {
         sides["SONG"]!.title = "Songs here (1)"
         sides["LIVE"]!.action = { [weak self] in self?.play?.setTab("radio") }
         sides["LIVE"]!.title = "Radio (3)"
-        sides["MINI"]!.action = { [weak self] in self?.play?.setMini(!(self?.mini ?? false)) }
-        sides["MINI"]!.title = "Mini player (M)"
+        sides["FULL"]!.action = { [weak self] in self?.play?.setMini(!(self?.mini ?? false)) }
+        sides["FULL"]!.title = "The player fills the window (⌘F)"
         sides["READ"]!.action = { [weak self] in self?.openEntry() }
         sides["READ"]!.title = "Read, look (Enter)"
         sides["ADD"]!.action = { [weak self] in self?.addFiles() }
@@ -621,7 +621,7 @@ final class FileView: Flipped {
         ram.isHidden = true
         guard showing, !small || (mode == .play && mini && !tiny) else { return }
         if mode == .play && mini {
-            if !tiny { sides["MINI"]!.isHidden = false; sides["MINI"]!.chosen = false }
+            if !tiny { sides["FULL"]!.isHidden = false; sides["FULL"]!.chosen = true }
             return
         }
         let hasFile = current.map { !$0.isDir } ?? false
@@ -631,7 +631,8 @@ final class FileView: Flipped {
             sides["LIVE"]!.isHidden = false
             sides["LIVE"]!.chosen = playTab == "radio"
             sides["INFO"]!.isHidden = false
-            sides["MINI"]!.isHidden = false
+            sides["FULL"]!.isHidden = false
+            sides["FULL"]!.chosen = false
         } else if own && mode == .view {
             sides["READ"]!.isHidden = false
             sides["READ"]!.enabled = hasFile
@@ -678,7 +679,7 @@ final class FileView: Flipped {
         // the window resized (tiled by ReDesk, say): the side buttons as its size wants them
         configureSides()
         let places: [(String, String)] = [("COLM", "topLeft"), ("LIST", "topRight"), ("INFO", "bottomLeft"), ("DEL", "bottomRight"),
-                                          ("SONG", "topLeft"), ("LIVE", "topRight"), ("MINI", "bottomRight"),
+                                          ("SONG", "topLeft"), ("LIVE", "topRight"), ("FULL", "bottomRight"),
                                           ("READ", "midLeft"), ("ADD", "midRight"), ("EDIT", "midLeft"), ("NOVA", "midRight")]
         for (w, at) in places { place(sides[w]!, at) }
         strip.frame = NSRect(x: 0, y: 0, width: W, height: 28)
