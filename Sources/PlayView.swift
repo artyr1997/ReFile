@@ -576,11 +576,8 @@ final class PlayButton: Flipped {
 
     var width: CGFloat { ceil(attributed("STOP", Fonts.buttons(15), kern: 6).size().width) + 18 - 6 + 2 }
 
+    // the word alone, no frame round it
     override func draw(_ dirtyRect: NSRect) {
-        Ink.text.setStroke()
-        let frame = NSBezierPath(rect: bounds.insetBy(dx: 0.5, dy: 0.5))
-        frame.lineWidth = 1
-        frame.stroke()
         let s = attributed(word, Fonts.buttons(15), NSColor(white: 1, alpha: hover ? 1 : 0.8), kern: 6)
         let size = s.size()
         s.draw(at: NSPoint(x: (bounds.width - size.width + 6) / 2, y: (bounds.height - size.height) / 2))
