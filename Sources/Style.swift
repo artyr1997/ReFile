@@ -118,6 +118,7 @@ final class Lang {
         "Compress": "圧縮",
         "Copy path": "パスをコピー",
         "Show in Finder": "Finderで表示",
+        "Add to wallpapers": "壁紙に追加",
         "Info": "情報",
         "Move to Trash": "ゴミ箱に入れる",
         "Kind": "種類",

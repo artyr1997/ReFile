@@ -940,16 +940,20 @@ final class FileView: Flipped {
         if let i { selected = i; apply() }
         guard let entry = current else { return }
         actionIndex = 0
-        let names = ["Open", "Rename", "Duplicate", "Compress", "Copy path", "Show in Finder", "Info", "Move to Trash"]
+        var names = ["Open", "Rename", "Duplicate", "Compress", "Copy path", "Show in Finder", "Info", "Move to Trash"]
+        // a picture or a video ReDesk can show: one of its wallpapers too
+        if !entry.isDir && Files.wallpaperKinds.contains((entry.name as NSString).pathExtension.lowercased()) {
+            names.insert("Add to wallpapers", at: 6)
+        }
         let problem = wrapping("", Fonts.words(15), Ink.error)
         problem.isHidden = true
         let menu = Menu(names.map { tx($0) })
         let run = { [weak self] (n: Int) in
             guard let self else { return }
             do {
-                switch n {
-                case 0: self.closePopup(); self.openEntry(entry)
-                case 1:
+                switch names[n] {
+                case "Open": self.closePopup(); self.openEntry(entry)
+                case "Rename":
                     let dot = entry.isDir ? -1 : (entry.name as NSString).deletingPathExtension.count
                     self.askName("RENAME", entry.name, chooseUpTo: dot > 0 ? dot : entry.name.count, button: "RENAME") { name in
                         let path = try Files.rename(entry.path, to: name)
@@ -958,23 +962,27 @@ final class FileView: Flipped {
                         self.reload(select: Files.name(path))
                         self.reveal()
                     }
-                case 2:
+                case "Duplicate":
                     let copy = try Files.duplicate(entry.path)
                     self.closePopup()
                     self.reload(select: Files.name(copy))
                     self.reveal()
-                case 3:
+                case "Compress":
                     let zip = try Files.compress(entry.path)
                     self.closePopup()
                     self.reload(select: Files.name(zip))
                     self.reveal()
-                case 4:
+                case "Copy path":
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(entry.path, forType: .string)
                     self.closePopup()
                     self.showToast("COPIED")
-                case 5: self.closePopup(); Files.reveal(entry.path)
-                case 6: self.openInfo()
+                case "Show in Finder": self.closePopup(); Files.reveal(entry.path)
+                case "Info": self.openInfo()
+                case "Add to wallpapers":
+                    try Files.addWallpaper(entry.path)
+                    self.closePopup()
+                    self.showToast("ADDED")
                 default: self.confirmTrash()
                 }
             } catch {

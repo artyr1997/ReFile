@@ -371,3 +371,29 @@ enum Files {
         return (cpu, memory)
     }
 }
+
+// ── ReDesk's wallpapers ──
+
+extension Files {
+    /// what ReDesk shows as a wallpaper: pictures, and videos AVFoundation plays
+    static let wallpaperKinds: Set<String> = ["jpg", "jpeg", "png", "heic", "mp4", "mov", "m4v"]
+
+    /// Edit › Add to wallpapers: a copy (a clone on APFS: no room taken until one of them changes) in ReDesk's
+    /// Added folder, and ReDesk told, which lists it with its wallpapers at once
+    static func addWallpaper(_ path: String) throws {
+        let folder = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("ReDesk/Added", isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let source = URL(fileURLWithPath: path)
+        let base = source.deletingPathExtension().lastPathComponent, ext = source.pathExtension
+        var target = folder.appendingPathComponent(source.lastPathComponent)
+        var n = 2
+        while FileManager.default.fileExists(atPath: target.path) {
+            target = folder.appendingPathComponent("\(base) \(n).\(ext)")
+            n += 1
+        }
+        try FileManager.default.copyItem(at: source, to: target)
+        DistributedNotificationCenter.default().postNotificationName(
+            .init("com.artursavytskyi.redesk.wallpapers"), object: target.path, userInfo: nil, deliverImmediately: true)
+    }
+}
