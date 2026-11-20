@@ -1,6 +1,6 @@
 import AppKit
 
-// ReFile: a quiet file browser in four modes (FILE, TEXT, VIEW, PLAY). A native Mac app on the ReSpace desk.
+// ReFile: a quiet file browser (FILE; a file opens in its own window in TEXT, VIEW or PLAY). A native Mac app on the ReSpace desk.
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var launched = false

@@ -1,9 +1,9 @@
 import AppKit
 
-// ReFile: a quiet file browser in four modes, FILE (everything), TEXT, VIEW (pictures and books) and PLAY
-// (music and videos). The folder's items on the left, what the chosen one holds on the right (COLM), or one
-// list with sizes and dates (LIST). A file opens in a new window of its own, in its mode; a folder all inside
-// (⇧Enter, ⇧F / T / V / P) in a new window too. Those windows keep to their folder.
+// ReFile: a quiet file browser. The main window is FILE (everything): the folder's items on the left, what the
+// chosen one holds on the right (COLM), or one list with sizes and dates (LIST). A file opens in a new window
+// of its own, in its mode, TEXT, VIEW (pictures and books) or PLAY (music and videos); a folder all inside
+// (⇧Enter, ⇧F / T / V / P) in a new window too, in that mode. Those windows keep to their folder.
 
 /// what a window was opened for: a file (in its mode), or every file inside a folder
 struct Opened {
@@ -68,7 +68,6 @@ final class FileView: Flipped {
 
     override init(frame: NSRect) {
         super.init(frame: frame)
-        if let m = Saved.word("mode").flatMap(Mode.init(rawValue:)) { mode = m }
         if let tab = Saved.word("playTab"), ["folder", "songs", "radio"].contains(tab) { playTab = tab }
         if let s = Saved.json("sort") as? [String: Any], let key = s["key"] as? String, let way = s["way"] as? Int,
            ["name", "kind", "date", "size"].contains(key), way == 1 || way == -1 { sort = (key, way) }
@@ -186,13 +185,12 @@ final class FileView: Flipped {
 
     // ── the four modes ──
 
-    /// F / T / V / P: this folder in that mode, the selection kept where it can be
+    /// this folder in that mode, the selection kept where it can be (--render only: the main window stays FILE)
     func setMode(_ next: Mode) {
         guard next != mode, !locked else { return }
         let keep = current?.path
         closeViewer()
         mode = next
-        Saved.setWord("mode", next.rawValue)
         query = ""
         search.stringValue = ""
         if next == .play { makePlay() }
@@ -881,7 +879,6 @@ final class FileView: Flipped {
     }
 
     static let shortcuts: [(String, String)] = [
-        ("F / T / V / P", "This folder in FILE / TEXT / VIEW / PLAY"),
         ("⇧ Enter, ⇧ F / T / V / P", "The folder selected, all inside it (at any depth), in a new window"),
         ("⌘ N", "New window"),
         ("↑ / ↓", "Select"),
@@ -1075,11 +1072,11 @@ final class FileView: Flipped {
         return true
     }
 
-    /// F / T / V / P: the mode (with ⇧: the folder, all inside it, in a new window in that mode)
+    /// ⇧F / T / V / P: the folder, all inside it, in a new window in that mode (the main window doesn't change mode)
     private func modeKey(_ e: NSEvent) -> Bool {
         let modes: [UInt16: Mode] = [3: .file, 17: .text, 9: .view, 35: .play]
-        guard let next = modes[e.keyCode] else { return false }
-        if e.modifierFlags.contains(.shift) { openTree(next) } else { setMode(next) }
+        guard let next = modes[e.keyCode], e.modifierFlags.contains(.shift) else { return false }
+        openTree(next)
         return true
     }
 
