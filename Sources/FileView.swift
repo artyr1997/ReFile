@@ -648,7 +648,9 @@ final class FileView: Flipped {
     private func place(_ b: SideButton, _ at: String) {
         let left = at.hasSuffix("Left")
         let x = left ? W * 0.0625 - 28 : W - (W * 0.0625 - 28) - SideButton.width
-        b.top = at.hasPrefix("top") && !b.boxed
+        // the room over the first letter for all (a bottom one's letters stay where they are: it stands on its
+        // bottom), so a chosen one's frame has as much over its letters as under them
+        b.top = !b.boxed
         let h = b.intrinsicContentSize.height
         let y: CGFloat
         switch at {
