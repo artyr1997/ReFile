@@ -711,14 +711,12 @@ final class FileView: Flipped {
         }
         preview.windowHeight = H
 
-        // the search: under the list; in PLAY, at the top (the title)
+        // the search: at the bottom, as far from it as the title from the top; in PLAY, at the top (the title)
         let searchW = small ? W - 200 : 360
         search.isHidden = mini || viewer != nil || reader != nil || video != nil
         search.frame = mode == .play
             ? NSRect(x: (W - searchW) / 2, y: small ? 12 : 28, width: searchW, height: 32)
-            : NSRect(x: (W - searchW) / 2, y: H - (small ? 8 : H * 0.0625 - 6) - 32, width: searchW, height: 32)
-
-        // how busy the Mac is: the processor at the left, the memory at the right; the disk under the search
+            : NSRect(x: (W - searchW) / 2, y: H - (small ? 8 : 28) - 32, width: searchW, height: 32)
 
         popup?.frame = bounds
     }
