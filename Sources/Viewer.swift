@@ -19,6 +19,9 @@ final class Viewer: Flipped, NSTextViewDelegate {
     var onClose: (() -> Void)?
     var onStep: ((Int) -> Void)?
     var position: String? { didSet { showFoot() } }
+    /// FULL: the picture or the text filling the window, nothing round it (Esc, F back)
+    private var full = false { didSet { needsLayout = true } }
+    func fillWindow() { full = true }
 
     init(entry: Entry, image img: NSImage) {
         self.entry = entry
@@ -124,12 +127,14 @@ final class Viewer: Flipped, NSTextViewDelegate {
         let mods = e.modifierFlags.intersection([.command, .control, .option, .shift])
         if window?.firstResponder === text {
             // in the text: it's typing, but for Esc (close) and ⌘S
-            if e.keyCode == 53 { onClose?(); return true }
+            if e.keyCode == 53 { if full { full = false } else { onClose?() }; return true }
             if mods == .command && e.keyCode == 1 { save(); return true }
             return false
         }
         switch e.keyCode {
-        case 53, 49: onClose?()
+        case 53: if full { full = false } else { onClose?() }
+        case 49: onClose?()
+        case 3: full.toggle()
         case 123, 126: onStep?(-1)
         case 124, 125: onStep?(1)
         default: return mods == .command ? false : true
@@ -143,14 +148,17 @@ final class Viewer: Flipped, NSTextViewDelegate {
         let small = W < 760 || H < 560
         let titleW = small ? W - 200 : W * 0.5
         titleLabel.frame = NSRect(x: (W - titleW) / 2, y: small ? 12 : 28, width: titleW, height: 32)
-        let area = small ? NSRect(x: 40, y: 52, width: W - 80, height: H - 104)
+        let area = full ? bounds.insetBy(dx: 40, dy: 32)
+            : small ? NSRect(x: 40, y: 52, width: W - 80, height: H - 104)
             : NSRect(x: W * 0.0625 + 60, y: H * 0.0625 + 40, width: W - 2 * (W * 0.0625 + 60), height: H - 2 * H * 0.0625 - 84)
+        titleLabel.isHidden = full
+        foot.isHidden = full
         image.frame = area
         scroll.frame = area
         text.frame.size.width = scroll.contentSize.width
         foot.frame = NSRect(x: 0, y: H - (small ? 8 : H * 0.0625 - 6) - 30, width: W, height: 24)
         let h = close.intrinsicContentSize.height
         close.frame = NSRect(x: W * 0.0625 - 28, y: (H - h) / 2, width: SideButton.width, height: h)
-        close.isHidden = small
+        close.isHidden = small || full
     }
 }

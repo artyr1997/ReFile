@@ -40,7 +40,7 @@ final class FileView: Flipped {
     let search = Field(size: 18, align: .center)
     /// NOVA in FILE: a new folder here (N)
     private let novaFolder = SideButton("NOVA") {}
-    /// VIEW's window: NOVA adds pictures and books here (A), FULL reads the one chosen with its pages filling the window
+    /// VIEW's window: NOVA adds pictures and books here (A); FULL (VIEW and TEXT) opens the one chosen filling the window
     private let viewNova = SideButton("NOVA") {}
     private let viewFull = SideButton("FULL") {}
     private let marks = Marks()
@@ -99,11 +99,11 @@ final class FileView: Flipped {
         sides["EDIT"]!.title = "Edit (Enter)"
         sides["NOVA"]!.action = { [weak self] in self?.newText() }
         sides["NOVA"]!.title = "A new text here (N)"
-        for w in ["ADD", "EDIT", "NOVA"] { sides[w]!.boxed = true }
+        sides["ADD"]!.boxed = true
         viewNova.action = { [weak self] in self?.addFiles() }
         viewNova.title = "Add pictures and books here (A)"
         viewFull.action = { [weak self] in self?.openFull() }
-        viewFull.title = "Read with the pages filling the window"
+        viewFull.title = "Open it filling the window"
         addSubview(viewNova)
         addSubview(viewFull)
 
@@ -657,8 +657,8 @@ final class FileView: Flipped {
             sides["EDIT"]!.enabled = hasFile
             sides["NOVA"]!.isHidden = false
             sides["INFO"]!.isHidden = false
-            sides["DEL"]!.isHidden = false
-            sides["DEL"]!.enabled = current != nil
+            viewFull.isHidden = false
+            viewFull.enabled = hasFile
         } else {
             sides["COLM"]!.isHidden = false
             sides["COLM"]!.chosen = layoutShown == "colm"
@@ -691,7 +691,7 @@ final class FileView: Flipped {
         configureSides()
         let places: [(String, String)] = [("COLM", "topLeft"), ("LIST", "bottomRight"), ("INFO", "bottomLeft"), ("DEL", "bottomRight"),
                                           ("SONG", "topLeft"), ("LIVE", "topRight"), ("FULL", "bottomRight"),
-                                          ("READ", "topLeft"), ("ADD", "midRight"), ("EDIT", "midLeft"), ("NOVA", "midRight")]
+                                          ("READ", "topLeft"), ("ADD", "midRight"), ("EDIT", "topLeft"), ("NOVA", "topRight")]
         for (w, at) in places { place(sides[w]!, at) }
         place(novaFolder, "topRight")
         place(viewNova, "topRight")
@@ -816,11 +816,12 @@ final class FileView: Flipped {
     }
 
     /// VIEW's ADD (A): pictures and books copied into this folder
-    /// FULL (VIEW): the one chosen opened, a book with its pages filling the window
+    /// FULL (VIEW, TEXT): the one chosen opened filling the window (a book's pages, a picture, a text)
     private func openFull() {
         guard let entry = current, !entry.isDir else { return }
         openEntry(entry)
         reader?.fillWindow()
+        viewer?.fillWindow()
     }
 
     private func addFiles() {
