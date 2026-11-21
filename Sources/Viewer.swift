@@ -11,7 +11,6 @@ final class Viewer: Flipped, NSTextViewDelegate {
     private let scroll = FadeScroll()
     private let text: NSTextView
     private let foot = label("", Fonts.words(14), NSColor(white: 1, alpha: 0.6 * 0.7), align: .center)
-    private let close = SideButton("CLOSE") {}
     private let truncated: Bool
     private var saved = ""
     private var timer: DispatchWorkItem?
@@ -84,10 +83,6 @@ final class Viewer: Flipped, NSTextViewDelegate {
         addSubview(image)
         addSubview(scroll)
         addSubview(foot)
-        close.boxed = true
-        close.title = "Close (Esc)"
-        close.action = { [weak self] in self?.onClose?() }
-        addSubview(close)
         showFoot()
     }
 
@@ -157,8 +152,5 @@ final class Viewer: Flipped, NSTextViewDelegate {
         scroll.frame = area
         text.frame.size.width = scroll.contentSize.width
         foot.frame = NSRect(x: 0, y: H - (small ? 8 : H * 0.0625 - 6) - 30, width: W, height: 24)
-        let h = close.intrinsicContentSize.height
-        close.frame = NSRect(x: W * 0.0625 - 28, y: (H - h) / 2, width: SideButton.width, height: h)
-        close.isHidden = small || full
     }
 }
