@@ -3,19 +3,23 @@ import PDFKit
 import WebKit
 
 // VIEW's reading (what ReBook's was), of a book where it lies. PDFs and comics are page by page: portrait
-// pages come two at a time, a landscape page alone (Spreads). An EPUB's text flows into pages, two columns
-// when the window is wide. MANGA (M): right to left. FULL (F): the pages fill the window. The place each book
-// was left at is kept by its path.
+// pages come two at a time, a landscape page alone (Spreads), each as a PDF viewer shows it (its crop box: no
+// white sheet round a scan). An EPUB's text flows into pages, two columns when the window is wide. BACK top left,
+// NEXT (the folder's next book) top right, MANG (M: right to left) bottom left, FULL (F: the pages fill the
+// window) bottom right. The place each book was left at is kept by its path.
 
 final class Reader: Flipped, WKNavigationDelegate {
-    private let path: String
+    let path: String
+    /// NEXT: the folder's next book in its place
+    var onNext: (() -> Void)?
     private let format: String
     private let onClose: () -> Void
     private var place: Place
     private let titleLabel = titleField()
     private let back = SideButton("BACK") {}
     private let fullButton = SideButton("FULL") {}
-    private let manga = SideButton("MANGA") {}
+    private let manga = SideButton("MANG") {}
+    private let nextBook = SideButton("NEXT", as: "NEXT BOOK") {}
     private let prev = WordButton("<", font: Fonts.buttons(26)) {}
     private let next = WordButton(">", font: Fonts.buttons(26)) {}
     private let pageLabel = label("", Fonts.words(16), align: .center)
@@ -51,16 +55,16 @@ final class Reader: Flipped, WKNavigationDelegate {
         titleLabel.toolTip = path
         addSubview(titleLabel)
         addSubview(stage)
-        back.boxed = true
         back.title = "Back to the folder (Esc)"
         back.action = { [weak self] in self?.close() }
-        fullButton.boxed = true
+        nextBook.title = "The next book here (N)"
+        nextBook.action = { [weak self] in self?.onNext?() }
         fullButton.title = "Pages fill the window (F, Esc back)"
         fullButton.action = { [weak self] in self?.toggleFull() }
         manga.title = "Manga: right to left (M)"
         manga.action = { [weak self] in self?.toggleManga() }
         manga.chosen = place.rtl
-        for v in [back, fullButton, manga, prev, next, pageLabel] as [NSView] { addSubview(v) }
+        for v in [back, nextBook, fullButton, manga, prev, next, pageLabel] as [NSView] { addSubview(v) }
         prev.action = { [weak self] in self?.goLeft() }
         next.action = { [weak self] in self?.goRight() }
         error.font = Fonts.words(18)
@@ -88,7 +92,7 @@ final class Reader: Flipped, WKNavigationDelegate {
         if format == "pdf" {
             guard let doc = PDFDocument(url: URL(fileURLWithPath: path)) else { return fail("Not a PDF it can read.") }
             pdf = doc
-            sizes = (0..<doc.pageCount).map { doc.page(at: $0)?.bounds(for: .mediaBox).size ?? NSSize(width: 600, height: 800) }
+            sizes = (0..<doc.pageCount).map { doc.page(at: $0)?.bounds(for: .cropBox).size ?? NSSize(width: 600, height: 800) }
             layOutSpreads(keep: Int(place.position ?? "0") ?? 0)
         } else if format == "cbz" || format == "cbr" {
             pageLabel.stringValue = "⋯"
@@ -143,7 +147,7 @@ final class Reader: Flipped, WKNavigationDelegate {
         for (box, i) in zip(pages, shown) {
             let size = box.bounds.size
             if let pdf, let p = pdf.page(at: i) {
-                box.image = p.thumbnail(of: NSSize(width: size.width * scale, height: size.height * scale), for: .mediaBox)
+                box.image = p.thumbnail(of: NSSize(width: size.width * scale, height: size.height * scale), for: .cropBox)
             } else if i < comic.count {
                 let url = comic[i]
                 DispatchQueue.global(qos: .userInitiated).async {
@@ -342,6 +346,7 @@ final class Reader: Flipped, WKNavigationDelegate {
         case 121, 49: nextPage()   // PageDown, Space
         case 116: prevPage()       // PageUp
         case 46 where paged: toggleManga()
+        case 45: onNext?()                                 // N
         case 115 where paged: go(0)                        // Home
         case 119 where paged: go(max(0, spreads.count - 1)) // End
         case 53: if full { toggleFull() } else { close() }
@@ -367,17 +372,18 @@ final class Reader: Flipped, WKNavigationDelegate {
         stage.frame = full ? bounds.insetBy(dx: 6, dy: 6)
             : small ? NSRect(x: 24, y: 48, width: W - 48, height: H - 96)
             : NSRect(x: W * 0.0625 + 44, y: H * 0.0625 + 24, width: W - 2 * (W * 0.0625 + 44), height: H - 2 * (H * 0.0625 + 24))
-        for v in [titleLabel, back, fullButton, prev, next, pageLabel] as [NSView] { v.isHidden = full }
+        for v in [titleLabel, back, nextBook, fullButton, prev, next, pageLabel] as [NSView] { v.isHidden = full }
         manga.isHidden = full || !paged || small
-        if small { back.isHidden = true; fullButton.isHidden = true }
+        if small { back.isHidden = true; nextBook.isHidden = true; fullButton.isHidden = true }
         let tw = small ? W - 200 : W * 0.5
         titleLabel.frame = NSRect(x: (W - tw) / 2, y: small ? 8 : H * 0.03125 + 12 - 16, width: tw, height: 32)
-        let bh = back.intrinsicContentSize.height
-        back.frame = NSRect(x: W * 0.0625 - 28, y: (H - bh) / 2, width: SideButton.width, height: bh)
-        fullButton.frame = NSRect(x: W - (W * 0.0625 - 28) - SideButton.width, y: (H - bh) / 2, width: SideButton.width, height: bh)
-        manga.top = true
-        let mh = manga.intrinsicContentSize.height
-        manga.frame = NSRect(x: W - (W * 0.0625 - 28) - SideButton.width, y: H * 0.0625 + 8, width: SideButton.width, height: mh)
+        // the corners, as the other side buttons: BACK and NEXT at the top, MANG and FULL at the bottom
+        let leftX = W * 0.0625 - 28, rightX = W - (W * 0.0625 - 28) - SideButton.width
+        for (b, x, top) in [(back, leftX, true), (nextBook, rightX, true), (manga, leftX, false), (fullButton, rightX, false)] {
+            b.top = true
+            let h = b.intrinsicContentSize.height
+            b.frame = NSRect(x: x, y: top ? H * 0.0625 + 8 : H - H * 0.0625 - h, width: SideButton.width, height: h)
+        }
         let py = H - (small ? 8 : H * 0.03125 + 12) - 16
         let lw: CGFloat = 120
         pageLabel.frame = NSRect(x: (W - lw) / 2, y: py + 6, width: lw, height: 22)

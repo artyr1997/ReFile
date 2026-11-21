@@ -366,6 +366,7 @@ final class FileView: Flipped {
         case .book:
             closeViewer()
             let r = Reader(path: entry.path) { [weak self] in self?.closeReader() }
+            r.onNext = { [weak self] in self?.openNextBook() }
             r.frame = bounds
             r.autoresizingMask = [.width, .height]
             addSubview(r, positioned: .below, relativeTo: strip)
@@ -391,6 +392,18 @@ final class FileView: Flipped {
         case .other:
             return false
         }
+    }
+
+    /// NEXT in the reader: the folder's next book (round to the first after the last), read here instead
+    private func openNextBook() {
+        let books = visible.filter { !$0.isDir && Files.kind($0.name) == .book }
+        guard let path = reader?.path, let i = books.firstIndex(where: { $0.path == path }) else { return }
+        let next = books[(i + 1) % books.count]
+        guard next.path != path else { return }
+        reader?.removeFromSuperview()
+        reader = nil
+        if let k = visible.firstIndex(where: { $0.path == next.path }) { selected = k }
+        openHere(next)
     }
 
     private func closeReader() {
