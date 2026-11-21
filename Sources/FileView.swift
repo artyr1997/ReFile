@@ -619,9 +619,12 @@ final class FileView: Flipped {
         let showing = viewer == nil && reader == nil && video == nil
         cpu.isHidden = true
         ram.isHidden = true
-        guard showing, !small || (mode == .play && mini && !tiny) else { return }
+        // a small window: no side buttons (in PLAY's FULL neither)
+        guard showing, !small else { return }
         if mode == .play && mini {
-            if !tiny { sides["FULL"]!.isHidden = false; sides["FULL"]!.chosen = true }
+            // the player filling the window: FULL, unframed, to bring the lists back
+            sides["FULL"]!.isHidden = false
+            sides["FULL"]!.chosen = false
             return
         }
         let hasFile = current.map { !$0.isDir } ?? false
