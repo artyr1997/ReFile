@@ -45,7 +45,6 @@ final class FileView: Flipped {
     private let strip = DragStrip()
     private var popup: Popup?
     private var popupKeys: ((NSEvent) -> Bool)?
-    private var toast: Toast?
     private var viewer: Viewer?
     private var reader: Reader?
     private var video: VideoView?
@@ -263,9 +262,6 @@ final class FileView: Flipped {
         let first = ["name": 1, "kind": 1, "date": -1, "size": -1]
         sort = (key, sort.key == key ? -sort.way : first[key]!)
         Saved.setJSON("sort", ["key": sort.key, "way": sort.way])
-        let words = ["name": ("A to Z", "Z to A"), "kind": ("A to Z", "Z to A"), "date": ("oldest first", "newest first"), "size": ("smallest first", "biggest first")]
-        let w = words[key]!
-        showToast("By \(key), \(sort.way == 1 ? w.0 : w.1)")
         keepSelection(keep)
         apply()
     }
@@ -741,7 +737,6 @@ final class FileView: Flipped {
         if small { cpu.isHidden = true; ram.isHidden = true }
 
         popup?.frame = bounds
-        toast?.place(in: bounds)
     }
 
     // ── load and disk ──
@@ -779,19 +774,6 @@ final class FileView: Flipped {
     }
 
     var popupShown: Bool { popup != nil }
-
-    func showToast(_ word: String, seconds: Double = 1.4) {
-        toast?.removeFromSuperview()
-        let t = Toast(word)
-        addSubview(t, positioned: .below, relativeTo: strip)
-        toast = t
-        t.place(in: bounds)
-        t.comeDown()
-        DispatchQueue.main.asyncAfter(deadline: .now() + seconds) { [weak self, weak t] in
-            t?.removeFromSuperview()
-            if self?.toast === t { self?.toast = nil }
-        }
-    }
 
     /// a popup with a name to type (NEW FOLDER, NEW TEXT, RENAME): Enter does it, Esc goes
     private func askName(_ title: String, _ value: String, chooseUpTo: Int, button: String, _ done: @escaping (String) throws -> Void) {
@@ -850,11 +832,9 @@ final class FileView: Flipped {
             guard answer == .OK, let self else { return }
             do {
                 let copied = try Files.copy(panel.urls.map(\.path), into: self.cwd)
-                self.showToast("ADDED")
                 self.reload(select: copied.first.map(Files.name))
                 self.reveal()
             } catch {
-                self.showToast("NOT ADDED")
             }
         }
     }
@@ -979,13 +959,11 @@ final class FileView: Flipped {
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(entry.path, forType: .string)
                     self.closePopup()
-                    self.showToast("COPIED")
                 case "Show in Finder": self.closePopup(); Files.reveal(entry.path)
                 case "Info": self.openInfo()
                 case "Add to wallpapers":
                     try Files.addWallpaper(entry.path)
                     self.closePopup()
-                    self.showToast("ADDED")
                 default: self.confirmTrash()
                 }
             } catch {

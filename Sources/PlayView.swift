@@ -116,7 +116,6 @@ final class PlayView: Flipped {
     private func scanned() {
         all = music.tracks()
         ti = min(ti, max(0, tracks.count - 1))
-        if music.scanning != nil { main?.showToast("SCAN", seconds: 1) }
         refresh()
     }
 
@@ -218,7 +217,6 @@ final class PlayView: Flipped {
         let was = genre
         music.setFavorite(s, on)
         if was != "Favorites" { gi = max(0, genreList.firstIndex(of: was) ?? 0) } else if music.favorites.isEmpty { gi = 0 }
-        main?.showToast(on ? "KEPT" : "LET GO")
         refresh()
     }
 
@@ -382,8 +380,8 @@ final class PlayView: Flipped {
             main.closePopup()
             switch n {
             case 0: self.music.play(ids: list.map(\.id), start: at)
-            case 1: self.music.playNext([t.id]); main.showToast("NEXT")
-            case 2: self.music.addToQueue([t.id]); main.showToast("QUEUED")
+            case 1: self.music.playNext([t.id])
+            case 2: self.music.addToQueue([t.id])
             default: Files.reveal(t.path)
             }
         }
@@ -486,10 +484,8 @@ final class PlayView: Flipped {
         case 49: music.togglePlay()
         case 1:
             music.setShuffle(!music.shuffle)
-            main?.showToast(music.shuffle ? "SHUF" : "ORDER")
         case 15:
-            let r = music.cycleRepeat()
-            main?.showToast(["all": "REPT", "one": "ONE", "off": "ONCE"][r.rawValue] ?? "")
+            _ = music.cycleRepeat()
         case 12: openQueue()
         case 34: openInfo()
         default:

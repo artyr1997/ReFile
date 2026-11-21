@@ -117,9 +117,7 @@ final class Viewer: Flipped, NSTextViewDelegate {
             try Files.write(text.string, to: entry.path)
             saved = text.string
             edited = true
-        } catch {
-            (superview as? FileView)?.showToast("NOT SAVED")
-        }
+        } catch {}
     }
 
     func key(_ e: NSEvent) -> Bool {
