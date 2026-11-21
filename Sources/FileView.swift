@@ -40,6 +40,9 @@ final class FileView: Flipped {
     let search = Field(size: 18, align: .center)
     /// NOVA in FILE: a new folder here (N)
     private let novaFolder = SideButton("NOVA") {}
+    /// VIEW's window: NOVA adds pictures and books here (A), FULL reads the one chosen with its pages filling the window
+    private let viewNova = SideButton("NOVA") {}
+    private let viewFull = SideButton("FULL") {}
     private let marks = Marks()
     private let strip = DragStrip()
     private var popup: Popup?
@@ -96,7 +99,13 @@ final class FileView: Flipped {
         sides["EDIT"]!.title = "Edit (Enter)"
         sides["NOVA"]!.action = { [weak self] in self?.newText() }
         sides["NOVA"]!.title = "A new text here (N)"
-        for w in ["READ", "ADD", "EDIT", "NOVA"] { sides[w]!.boxed = true }
+        for w in ["ADD", "EDIT", "NOVA"] { sides[w]!.boxed = true }
+        viewNova.action = { [weak self] in self?.addFiles() }
+        viewNova.title = "Add pictures and books here (A)"
+        viewFull.action = { [weak self] in self?.openFull() }
+        viewFull.title = "Read with the pages filling the window"
+        addSubview(viewNova)
+        addSubview(viewFull)
 
         addSubview(titleLabel)
         column.onSelect = { [weak self] i in self?.choose(i) }
@@ -603,6 +612,8 @@ final class FileView: Flipped {
     private func configureSides() {
         for b in sides.values { b.isHidden = true }
         novaFolder.isHidden = true
+        viewNova.isHidden = true
+        viewFull.isHidden = true
         let showing = viewer == nil && reader == nil && video == nil
         // a small window: no side buttons (in PLAY's FULL neither)
         guard showing, !small else { return }
@@ -624,10 +635,10 @@ final class FileView: Flipped {
         } else if own && mode == .view {
             sides["READ"]!.isHidden = false
             sides["READ"]!.enabled = hasFile
-            sides["ADD"]!.isHidden = false
+            viewNova.isHidden = false
             sides["INFO"]!.isHidden = false
-            sides["DEL"]!.isHidden = false
-            sides["DEL"]!.enabled = current != nil
+            viewFull.isHidden = false
+            viewFull.enabled = hasFile
         } else if own && mode == .text {
             sides["EDIT"]!.isHidden = false
             sides["EDIT"]!.enabled = hasFile
@@ -667,9 +678,11 @@ final class FileView: Flipped {
         configureSides()
         let places: [(String, String)] = [("COLM", "topLeft"), ("LIST", "bottomRight"), ("INFO", "bottomLeft"), ("DEL", "bottomRight"),
                                           ("SONG", "topLeft"), ("LIVE", "topRight"), ("FULL", "bottomRight"),
-                                          ("READ", "midLeft"), ("ADD", "midRight"), ("EDIT", "midLeft"), ("NOVA", "midRight")]
+                                          ("READ", "topLeft"), ("ADD", "midRight"), ("EDIT", "midLeft"), ("NOVA", "midRight")]
         for (w, at) in places { place(sides[w]!, at) }
         place(novaFolder, "topRight")
+        place(viewNova, "topRight")
+        place(viewFull, "bottomRight")
         strip.frame = NSRect(x: 0, y: 0, width: W, height: 28)
         marks.frame = NSRect(x: 14, y: 14, width: 13, height: 40)
 
@@ -790,6 +803,13 @@ final class FileView: Flipped {
     }
 
     /// VIEW's ADD (A): pictures and books copied into this folder
+    /// FULL (VIEW): the one chosen opened, a book with its pages filling the window
+    private func openFull() {
+        guard let entry = current, !entry.isDir else { return }
+        openEntry(entry)
+        reader?.fillWindow()
+    }
+
     private func addFiles() {
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = true

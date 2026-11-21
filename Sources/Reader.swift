@@ -184,6 +184,9 @@ final class Reader: Flipped, WKNavigationDelegate {
         if paged { showSpread() }
     }
 
+    /// FULL in VIEW's window: the book opened with its pages filling the window at once
+    func fillWindow() { if !full { toggleFull() } }
+
     private func toggleFull() {
         full.toggle()
         needsLayout = true
