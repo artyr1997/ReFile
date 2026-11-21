@@ -38,9 +38,8 @@ final class FileView: Flipped {
     let table = ListView()
     let preview = Preview()
     let search = Field(size: 18, align: .center)
-    private let cpu = Gauge("CPU")
-    private let ram = Gauge("RAM")
-    private let diskLine = DiskLine()
+    /// NOVA in FILE: a new folder here (N)
+    private let novaFolder = SideButton("NOVA") {}
     private let marks = Marks()
     private let strip = DragStrip()
     private var popup: Popup?
@@ -51,14 +50,12 @@ final class FileView: Flipped {
     private(set) var play: PlayView?
     var pinned = false { didSet { marks.pinned = pinned } }
 
-    private var loadTimer: Timer?
-    private var diskTimer: Timer?
 
     var W: CGFloat { bounds.width }
     var H: CGFloat { bounds.height }
     var small: Bool { W < 760 || H < 560 }
     var tiny: Bool { W < 520 || H < 420 }
-    /// a window for a file or for all inside a folder in PLAY, VIEW or TEXT: its mode's own buttons, no gauges
+    /// a window for a file or for all inside a folder in PLAY, VIEW or TEXT: its mode's own buttons
     var own: Bool { locked && mode != .file }
     var mini: Bool { mode == .play && (tiny || (play?.chosenMini ?? false)) }
     /// the browser shows, but in PLAY's songs and radio, and its mini player
@@ -114,9 +111,9 @@ final class FileView: Flipped {
         preview.openEntry = { [weak self] e in self?.openFromPreview(e) }
         preview.onPictureSize = { [weak self] size in self?.pictureSize(size) }
         addSubview(preview)
-        addSubview(cpu)
-        addSubview(ram)
-        addSubview(diskLine)
+        novaFolder.action = { [weak self] in self?.newFolder() }
+        novaFolder.title = "New folder (N)"
+        addSubview(novaFolder)
         search.placeholder = "Search"
         search.toolTip = "Search (/)"
         search.onChange = { [weak self] in self?.queried() }
@@ -132,14 +129,9 @@ final class FileView: Flipped {
     func start() {
         locked = opened?.path != nil || opened?.tree != nil
         if let m = opened?.mode { mode = m }
-        refreshLoad()
-        loadTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in self?.refreshLoad() }
-        refreshDisk()
-        diskTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in self?.refreshDisk() }
         NotificationCenter.default.addObserver(forName: NSWindow.didBecomeKeyNotification, object: window, queue: .main) { [weak self] _ in
             // files may change in other apps while ReFile is in the background
             self?.reload()
-            self?.refreshDisk()
         }
         if mode == .play { makePlay() }
         if let tree = opened?.tree {
@@ -166,8 +158,6 @@ final class FileView: Flipped {
     }
 
     func end() {
-        loadTimer?.invalidate()
-        diskTimer?.invalidate()
         viewer?.save()
     }
 
@@ -612,9 +602,8 @@ final class FileView: Flipped {
 
     private func configureSides() {
         for b in sides.values { b.isHidden = true }
+        novaFolder.isHidden = true
         let showing = viewer == nil && reader == nil && video == nil
-        cpu.isHidden = true
-        ram.isHidden = true
         // a small window: no side buttons (in PLAY's FULL neither)
         guard showing, !small else { return }
         if mode == .play && mini {
@@ -652,10 +641,7 @@ final class FileView: Flipped {
             sides["LIST"]!.isHidden = false
             sides["LIST"]!.chosen = layoutShown != "colm"
             sides["INFO"]!.isHidden = false
-            sides["DEL"]!.isHidden = false
-            sides["DEL"]!.enabled = current != nil
-            cpu.isHidden = mode == .play
-            ram.isHidden = mode == .play
+            novaFolder.isHidden = false
         }
     }
 
@@ -677,10 +663,11 @@ final class FileView: Flipped {
         super.layout()
         // the window resized (tiled by ReDesk, say): the side buttons as its size wants them
         configureSides()
-        let places: [(String, String)] = [("COLM", "topLeft"), ("LIST", "topRight"), ("INFO", "bottomLeft"), ("DEL", "bottomRight"),
+        let places: [(String, String)] = [("COLM", "topLeft"), ("LIST", "bottomRight"), ("INFO", "bottomLeft"), ("DEL", "bottomRight"),
                                           ("SONG", "topLeft"), ("LIVE", "topRight"), ("FULL", "bottomRight"),
                                           ("READ", "midLeft"), ("ADD", "midRight"), ("EDIT", "midLeft"), ("NOVA", "midRight")]
         for (w, at) in places { place(sides[w]!, at) }
+        place(novaFolder, "topRight")
         strip.frame = NSRect(x: 0, y: 0, width: W, height: 28)
         marks.frame = NSRect(x: 14, y: 14, width: 13, height: 40)
 
@@ -730,28 +717,8 @@ final class FileView: Flipped {
             : NSRect(x: (W - searchW) / 2, y: H - (small ? 8 : H * 0.0625 - 6) - 32, width: searchW, height: 32)
 
         // how busy the Mac is: the processor at the left, the memory at the right; the disk under the search
-        cpu.frame = NSRect(x: W * 0.0625 - 26.5, y: H / 2 - 108, width: 40, height: 216)
-        ram.frame = NSRect(x: W - (W * 0.0625 - 26.5) - 40, y: H / 2 - 108, width: 40, height: 216)
-        diskLine.isHidden = small || mode == .play || own || !browsing || covered
-        diskLine.frame = NSRect(x: W / 2 - 240, y: H - (H * 0.0625 - 16) - 2 - 8, width: 480, height: 44)
-        if small { cpu.isHidden = true; ram.isHidden = true }
 
         popup?.frame = bounds
-    }
-
-    // ── load and disk ──
-
-    private func refreshLoad() {
-        let l = Files.load()
-        cpu.value = l.cpu
-        ram.value = l.memory
-    }
-
-    private func refreshDisk() {
-        DispatchQueue.global(qos: .utility).async {
-            let d = Files.disk()
-            DispatchQueue.main.async { self.diskLine.disk = d }
-        }
     }
 
     // ── popups ──
@@ -1134,53 +1101,3 @@ final class Menu: Flipped {
     override func mouseUp(with event: NSEvent) { if let i = index(event) { onPick?(i) } }
 }
 
-/// a load line (as on ReDesk): faint, filled from below as far as used; its name over it, its percent under it
-final class Gauge: Flipped {
-    let name: String
-    var value: Double = 0 { didSet { needsDisplay = true; toolTip = "\(name == "CPU" ? "Processor" : "Memory") \(Int((value * 100).rounded()))%" } }
-
-    init(_ name: String) {
-        self.name = name
-        super.init(frame: .zero)
-    }
-
-    required init?(coder: NSCoder) { fatalError() }
-
-    override func draw(_ dirtyRect: NSRect) {
-        let n = attributed(name, Fonts.buttons(10), Ink.muted, kern: 1.8)
-        n.draw(at: NSPoint(x: (bounds.width - n.size().width + 1.8) / 2, y: 0))
-        let line = NSRect(x: bounds.midX - 1.5, y: 28, width: 3, height: 160)
-        NSColor(white: 1, alpha: 0.8 * 0.25).setFill()
-        NSBezierPath(roundedRect: line, xRadius: 1.5, yRadius: 1.5).fill()
-        let h = line.height * CGFloat(min(1, max(0, value)))
-        NSColor(white: 1, alpha: 0.8 * 0.75).setFill()
-        NSBezierPath(roundedRect: NSRect(x: line.minX, y: line.maxY - h, width: 3, height: h), xRadius: 1.5, yRadius: 1.5).fill()
-        let v = attributed("\(Int((value * 100).rounded()))", Fonts.words(13), Ink.muted)
-        v.draw(at: NSPoint(x: (bounds.width - v.size().width) / 2, y: 200))
-    }
-}
-
-/// how full the disk is: a faint line under the search, filled as far as used; GB used left, free right, DISC under
-final class DiskLine: Flipped {
-    var disk: (total: Int64, free: Int64)? { didSet { needsDisplay = true; isHidden = isHidden || disk == nil } }
-
-    override func draw(_ dirtyRect: NSRect) {
-        guard let disk, disk.total > 0 else { return }
-        let gb = { (b: Int64) in "\(Int((Double(b) / 1e9).rounded()))" }
-        toolTip = "\(gb(disk.total - disk.free)) GB of \(gb(disk.total)) GB used, \(gb(disk.free)) GB free"
-        let line = NSRect(x: bounds.midX - 180, y: 8, width: 360, height: 3)
-        NSColor(white: 1, alpha: 0.8 * 0.25).setFill()
-        NSBezierPath(roundedRect: line, xRadius: 1.5, yRadius: 1.5).fill()
-        let used = 1 - Double(disk.free) / Double(disk.total)
-        NSColor(white: 1, alpha: 0.8 * 0.75).setFill()
-        NSBezierPath(roundedRect: NSRect(x: line.minX, y: line.minY, width: line.width * CGFloat(used), height: 3), xRadius: 1.5, yRadius: 1.5).fill()
-        let u = attributed(gb(disk.total - disk.free), Fonts.words(13), Ink.muted)
-        u.draw(at: NSPoint(x: line.minX - 14 - u.size().width, y: line.midY - u.size().height / 2))
-        let f = attributed(gb(disk.free), Fonts.words(13), Ink.muted)
-        f.draw(at: NSPoint(x: line.maxX + 14, y: line.midY - f.size().height / 2))
-        let n = attributed("DISC", Fonts.buttons(10), Ink.muted, kern: 1.8)
-        n.draw(at: NSPoint(x: bounds.midX - (n.size().width - 1.8) / 2, y: 26))
-    }
-
-    override func hitTest(_ point: NSPoint) -> NSView? { nil }
-}

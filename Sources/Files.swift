@@ -331,45 +331,6 @@ enum Files {
     }
 
     static func name(_ path: String) -> String { path == "/" ? "Macintosh HD" : (path as NSString).lastPathComponent }
-
-    // ── the disk and how busy the Mac is ──
-
-    static func disk() -> (total: Int64, free: Int64)? {
-        guard let v = try? URL(fileURLWithPath: NSHomeDirectory()).resourceValues(forKeys: [.volumeTotalCapacityKey, .volumeAvailableCapacityForImportantUsageKey]),
-              let total = v.volumeTotalCapacity, let free = v.volumeAvailableCapacityForImportantUsage else { return nil }
-        return (Int64(total), free)
-    }
-
-    private static var lastTicks: (busy: UInt64, all: UInt64)?
-
-    /// the processor (all its cores, since the last time asked) and the memory, 0…1
-    static func load() -> (cpu: Double, memory: Double) {
-        var cpu = 0.0
-        var info = host_cpu_load_info()
-        var count = mach_msg_type_number_t(MemoryLayout<host_cpu_load_info>.size / MemoryLayout<integer_t>.size)
-        let ok = withUnsafeMutablePointer(to: &info) {
-            $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) { host_statistics(mach_host_self(), HOST_CPU_LOAD_INFO, $0, &count) }
-        }
-        if ok == KERN_SUCCESS {
-            let user = UInt64(info.cpu_ticks.0), system = UInt64(info.cpu_ticks.1), idle = UInt64(info.cpu_ticks.2), nice = UInt64(info.cpu_ticks.3)
-            let busy = user + system + nice, all = busy + idle
-            if let last = lastTicks, all > last.all { cpu = Double(busy - last.busy) / Double(all - last.all) }
-            lastTicks = (busy, all)
-        }
-        var memory = 0.0
-        var vm = vm_statistics64()
-        var vmCount = mach_msg_type_number_t(MemoryLayout<vm_statistics64>.size / MemoryLayout<integer_t>.size)
-        let vmOk = withUnsafeMutablePointer(to: &vm) {
-            $0.withMemoryRebound(to: integer_t.self, capacity: Int(vmCount)) { host_statistics64(mach_host_self(), HOST_VM_INFO64, $0, &vmCount) }
-        }
-        if vmOk == KERN_SUCCESS {
-            let page = Double(vm_kernel_page_size)
-            // used as Activity Monitor counts it: app memory (active + wired + compressed, less the purgeable)
-            let used = (Double(vm.active_count) + Double(vm.wire_count) + Double(vm.compressor_page_count) - Double(vm.purgeable_count)) * page
-            memory = min(1, max(0, used / Double(ProcessInfo.processInfo.physicalMemory)))
-        }
-        return (cpu, memory)
-    }
 }
 
 // ── ReDesk's wallpapers ──
