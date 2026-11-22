@@ -7,6 +7,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var pending: [String] = []
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // keys of one's own, as set in ReDesk's keys popup (⌘/)
+        OwnKeys.start(app: "ReFile", standard: [
+            "newWindow": .init(45, "n"),
+        ])
         NSApp.appearance = NSAppearance(named: .darkAqua)
         NSApp.mainMenu = menu()
         Lang.shared.follow()
