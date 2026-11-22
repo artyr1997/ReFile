@@ -66,12 +66,29 @@ final class ImageBox: Flipped {
 /// the start of a text, as a page: a darker pane, its lines fading out at its foot
 final class PageView: Flipped {
     var text = "" { didSet { needsDisplay = true } }
+    /// a table's (CSV, TSV) start instead of its text
+    var table: [[String]]? {
+        didSet {
+            if let table {
+                if grid.superview == nil { addSubview(grid) }
+                grid.fontSize = size
+                grid.rows = Array(table.prefix(60))
+                grid.isHidden = false
+            } else {
+                grid.isHidden = true
+            }
+            needsDisplay = true
+            needsLayout = true
+        }
+    }
+    private let grid = TableView()
     var size: CGFloat = 12
     var pad = NSSize(width: 32, height: 28)
 
     override func draw(_ dirtyRect: NSRect) {
         Ink.pane.setFill()
         bounds.fill()
+        if table != nil { return }
         let p = NSMutableParagraphStyle()
         p.minimumLineHeight = size * 1.6
         p.maximumLineHeight = size * 1.6
@@ -86,6 +103,11 @@ final class PageView: Flipped {
 
     override func layout() {
         super.layout()
+        if table != nil {
+            grid.inset = NSSize(width: pad.width - 8, height: pad.height - 8)
+            grid.frame = NSRect(origin: .zero, size: NSSize(width: max(bounds.width, grid.size.width), height: max(bounds.height, grid.size.height)))
+            clipsToBounds = true
+        }
         // its foot fades out, as more text goes on
         wantsLayer = true
         let mask = CAGradientLayer()
@@ -281,13 +303,14 @@ final class Preview: Flipped {
                     Thumbs.get(info.path, size: 480, showPicture)
                 }
             }
-        case .page(_, let text, let m):
+        case .page(let info, let text, let m):
             meta.stringValue = m
             meta.isHidden = false
             if let text {
                 page.size = 12
                 page.pad = NSSize(width: 32, height: 28)
                 page.text = text
+                page.table = Table.isTable(info.name) ? Table.parse(text, name: info.name, limit: 60) : nil
                 page.isHidden = false
             } else {
                 blankName.stringValue = "Not text after all."
@@ -301,6 +324,7 @@ final class Preview: Flipped {
                 page.size = 12
                 page.pad = NSSize(width: 32, height: 28)
                 page.text = text
+                page.table = Table.isTable(info.name) ? Table.parse(text, name: info.name, limit: 60) : nil
                 page.isHidden = false
             } else if kind == .image || kind == .book || kind == .video {
                 Thumbs.get(info.path, size: 520) { img in

@@ -12,6 +12,8 @@ final class Viewer: Flipped, NSTextViewDelegate {
     private let text: NSTextView
     private let foot = label("", Fonts.words(14), NSColor(white: 1, alpha: 0.6 * 0.7), align: .center)
     private let truncated: Bool
+    /// a table (CSV, TSV): shown as one, not written in
+    private var table: TableView?
     private var saved = ""
     private var timer: DispatchWorkItem?
     private(set) var edited = false
@@ -32,7 +34,8 @@ final class Viewer: Flipped, NSTextViewDelegate {
         scroll.isHidden = true
     }
 
-    init(entry: Entry, text t: String, truncated: Bool) {
+    init(entry: Entry, text t0: String, truncated: Bool) {
+        let t = t0
         self.entry = entry
         self.truncated = truncated
         let storage = NSTextStorage()
@@ -70,6 +73,15 @@ final class Viewer: Flipped, NSTextViewDelegate {
         text.textStorage?.setAttributedString(NSAttributedString(string: t, attributes: attrs))
         text.delegate = self
         scroll.documentView = text
+        if Table.isTable(entry.name) {
+            let t = TableView()
+            t.fontSize = 14
+            t.rows = Table.parse(t0, name: entry.name)
+            table = t
+            text.isEditable = false
+            scroll.documentView = t
+            scroll.hasHorizontalScroller = false
+        }
         setUp()
         image.isHidden = true
     }
@@ -88,13 +100,14 @@ final class Viewer: Flipped, NSTextViewDelegate {
 
     private func showFoot() {
         var s = Files.size(entry.size)
+        if let table { s += " · \(table.rows.count) rows · \(table.widths.count) columns" }
         if truncated { s += " · the first megabyte, not editable" }
         if let position { s += " · \(position)" }
         foot.stringValue = s
     }
 
     func focus() {
-        if !scroll.isHidden { window?.makeFirstResponder(text) }
+        if !scroll.isHidden && table == nil { window?.makeFirstResponder(text) }
     }
 
     // ── kept as it is written ──
@@ -110,7 +123,7 @@ final class Viewer: Flipped, NSTextViewDelegate {
     func save() {
         timer?.cancel()
         timer = nil
-        guard !scroll.isHidden, !truncated, text.string != saved else { return }
+        guard !scroll.isHidden, !truncated, table == nil, text.string != saved else { return }
         do {
             try Files.write(text.string, to: entry.path)
             saved = text.string
@@ -151,6 +164,14 @@ final class Viewer: Flipped, NSTextViewDelegate {
         image.frame = area
         scroll.frame = area
         text.frame.size.width = scroll.contentSize.width
+        if let table {
+            // a table narrower than its place stands in its middle
+            let cells = table.widths.reduce(0, +)
+            table.inset.width = max(24, (scroll.contentSize.width - cells) / 2)
+            let s = table.size
+            table.frame = NSRect(x: 0, y: 0, width: max(s.width, scroll.contentSize.width), height: max(s.height, scroll.contentSize.height))
+            table.needsDisplay = true
+        }
         foot.frame = NSRect(x: 0, y: H - (small ? 8 : H * 0.0625 - 6) - 30, width: W, height: 24)
     }
 }

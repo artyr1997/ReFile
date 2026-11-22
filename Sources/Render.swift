@@ -29,6 +29,12 @@ enum Render {
         let text = "# A quiet note\n\nKnowledge does not arrive complete.\nIt settles, layer by layer.\n\n" + (1...30).map { "Line \($0): the words go on." }.joined(separator: "\n")
         for name in ["Ideas.md", "Plan.txt", "todo.txt"] { try? text.write(to: files.appendingPathComponent("Notes/\(name)"), atomically: true, encoding: .utf8) }
         try? text.write(to: files.appendingPathComponent("README.md"), atomically: true, encoding: .utf8)
+        // a table: teas, as a CSV (a quoted cell with a comma in it)
+        let teas = ["Name,Kind,Water,Time,Origin,Note", "Sencha,Green,70°,1 min,Shizuoka,\"Fresh, grassy\"", "Gyokuro,Green,55°,2 min,Uji,Shaded before the harvest",
+                    "Hojicha,Roasted,90°,30 s,Kyoto,Toasty", "Genmaicha,Green with rice,85°,1 min,Shizuoka,Roasted rice", "Matcha,Powdered,80°,whisked,Uji,Drunk from a bowl",
+                    "Bancha,Green,80°,1 min,Kagoshima,Everyday", "Kukicha,Stems,75°,1 min,Kyoto,Light and sweet", "Oolong,Half-fermented,90°,3 min,Taiwan,Many steepings",
+                    "Darjeeling,Black,95°,3 min,India,Muscatel"].joined(separator: "\n")
+        try? teas.write(to: files.appendingPathComponent("Notes/teas.csv"), atomically: true, encoding: .utf8)
         // a PDF of three pages
         let pdf = PDFDocument()
         for n in 1...3 {
@@ -82,6 +88,10 @@ enum Render {
         shoot(w3, "text-page")
         if let e = w3.main.current { w3.main.show(e) }
         shoot(w3, "text-viewer")
+        let w8 = window(wide, mode: .text, at: files.appendingPathComponent("Notes").path, select: "teas.csv")
+        shoot(w8, "table-page")
+        if let e = w8.main.current { w8.main.show(e) }
+        shoot(w8, "table-viewer")
         let w4 = window(wide, mode: .play, at: files.path, select: nil)
         shoot(w4, "play-folder")
         w4.main.key(keyEvent(19))
@@ -94,7 +104,7 @@ enum Render {
         let w7 = window(wide, mode: .view, at: files.appendingPathComponent("Books").path, select: "A short book.pdf")
         w7.main.openHere(w7.main.current!)
         shoot(w7, "reader")
-        for w in [w1, w2, w3, w4, w5, w6, w7] { w.main.end() }
+        for w in [w1, w2, w3, w4, w5, w6, w7, w8] { w.main.end() }
         try? fm.removeItem(at: root)
     }
 
