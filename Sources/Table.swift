@@ -268,6 +268,21 @@ final class TableView: Flipped, NSTextFieldDelegate {
         guard editable else { return false }
         if editing { return false }
         let mods = e.modifierFlags.intersection([.command, .control, .option, .shift])
+        // rows and columns added (⇧⌘ and an arrow: on that side of the chosen cell) and taken away (⌘⌫ the row,
+        // ⇧⌘⌫ the column)
+        if let (r, c) = chosen {
+            if mods == [.command, .shift] {
+                switch e.keyCode {
+                case 125: insertRow(at: r + 1); return true
+                case 126: insertRow(at: r); return true
+                case 124: insertColumn(at: c + 1); return true
+                case 123: insertColumn(at: c); return true
+                case 51, 117: deleteColumn(c); return true
+                default: break
+                }
+            }
+            if mods == .command && (e.keyCode == 51 || e.keyCode == 117) { deleteRow(r); return true }
+        }
         guard mods.isEmpty || mods == .shift else { return false }
         let (r, c) = chosen ?? (-1, -1)
         switch e.keyCode {
@@ -284,6 +299,93 @@ final class TableView: Flipped, NSTextFieldDelegate {
         }
         return true
     }
+
+    // ── rows and columns, added and taken away ──
+
+    /// the sizes set by hand move with their rows and columns
+    private func shift(_ sizes: inout [Int: CGFloat], from i: Int, by d: Int) {
+        var moved: [Int: CGFloat] = [:]
+        for (k, v) in sizes {
+            if k < i { moved[k] = v } else if d < 0 && k == i { continue } else { moved[k + d] = v }
+        }
+        sizes = moved
+    }
+
+    func insertRow(at r: Int) {
+        let at = max(0, min(rows.count, r))
+        rows.insert(Array(repeating: "", count: max(1, columns)), at: at)
+        shift(&setHeights, from: at, by: 1)
+        changed()
+        choose(at, chosen?.column ?? 0)
+    }
+
+    func deleteRow(_ r: Int) {
+        guard rows.count > 1, r < rows.count else { return }
+        rows.remove(at: r)
+        shift(&setHeights, from: r, by: -1)
+        changed()
+        choose(min(r, rows.count - 1), chosen?.column ?? 0)
+    }
+
+    func insertColumn(at c: Int) {
+        let at = max(0, min(columns, c))
+        for i in rows.indices {
+            while rows[i].count < at { rows[i].append("") }
+            rows[i].insert("", at: at)
+        }
+        shift(&setWidths, from: at, by: 1)
+        // an empty column, wide enough to write in
+        setWidths[at] = 120
+        changed()
+        choose(chosen?.row ?? 0, at)
+    }
+
+    func deleteColumn(_ c: Int) {
+        guard columns > 1, c < columns else { return }
+        for i in rows.indices where c < rows[i].count { rows[i].remove(at: c) }
+        shift(&setWidths, from: c, by: -1)
+        changed()
+        choose(chosen?.row ?? 0, min(c, columns - 1))
+    }
+
+    private func changed() {
+        measure()
+        store()
+        onEdit?()
+        onResize?()
+    }
+
+    /// a right click on a cell: what can be done there
+    override func menu(for event: NSEvent) -> NSMenu? {
+        guard editable else { return nil }
+        commit()
+        let p = convert(event.locationInWindow, from: nil)
+        guard let at = cell(at: p) else { return nil }
+        choose(at.row, at.column)
+        let menu = NSMenu()
+        let items: [(String, String, () -> Void)] = [
+            ("Row above", "⇧⌘↑", { [weak self] in self?.insertRow(at: at.row) }),
+            ("Row below", "⇧⌘↓", { [weak self] in self?.insertRow(at: at.row + 1) }),
+            ("Column left", "⇧⌘←", { [weak self] in self?.insertColumn(at: at.column) }),
+            ("Column right", "⇧⌘→", { [weak self] in self?.insertColumn(at: at.column + 1) }),
+            ("", "", {}),
+            ("Delete row", "⌘⌫", { [weak self] in self?.deleteRow(at.row) }),
+            ("Delete column", "⇧⌘⌫", { [weak self] in self?.deleteColumn(at.column) }),
+        ]
+        menuActions = []
+        for (title, keys, run) in items {
+            if title.isEmpty { menu.addItem(.separator()); continue }
+            let action = MenuAction(run)
+            menuActions.append(action)
+            let item = menu.addItem(withTitle: tx(title) + "    " + keys, action: #selector(MenuAction.fire), keyEquivalent: "")
+            item.target = action
+            if title == "Delete row" { item.isEnabled = rows.count > 1 }
+            if title == "Delete column" { item.isEnabled = columns > 1 }
+        }
+        menu.autoenablesItems = false
+        return menu
+    }
+    private var menuActions: [MenuAction] = []
 
     private func set(_ value: String, _ r: Int, _ c: Int) {
         while rows[r].count <= c { rows[r].append("") }
@@ -344,4 +446,11 @@ final class TableView: Flipped, NSTextFieldDelegate {
     }
 
     func controlTextDidEndEditing(_ obj: Notification) { if field != nil { commit() } }
+}
+
+/// a menu item's action, kept while its menu is shown
+final class MenuAction: NSObject {
+    let run: () -> Void
+    init(_ run: @escaping () -> Void) { self.run = run }
+    @objc func fire() { run() }
 }
