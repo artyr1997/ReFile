@@ -87,6 +87,14 @@ final class TableView: Flipped, NSTextFieldDelegate {
     private var setWidths: [Int: CGFloat] = [:]
     private var setHeights: [Int: CGFloat] = [:]
     private(set) var chosen: (row: Int, column: Int)?
+    /// the other corner of the cells chosen together (⇧ and the arrows, ⇧-click, ⌘A); none: the one cell
+    private(set) var extent: (row: Int, column: Int)?
+    /// the cells chosen: from row to row, from column to column
+    var selection: (rows: ClosedRange<Int>, columns: ClosedRange<Int>)? {
+        guard let chosen else { return nil }
+        let e = extent ?? chosen
+        return (min(chosen.row, e.row)...max(chosen.row, e.row), min(chosen.column, e.column)...max(chosen.column, e.column))
+    }
     private var field: NSTextField?
     var editing: Bool { field != nil }
 
@@ -143,11 +151,10 @@ final class TableView: Flipped, NSTextFieldDelegate {
         let first = max(0, (y.firstIndex { $0 > dirtyRect.minY } ?? 1) - 2)
         let last = min(rows.count, (y.firstIndex { $0 > dirtyRect.maxY } ?? rows.count) + 1)
         guard first < last else { return }
-        // the chosen cell: its four + drawn on into one another, a frame of the same thin line, the same ink
-        if let chosen, chosen.row < rows.count, chosen.column < widths.count {
-            let c = chosen.column, r = chosen.row
-            let left = x[c].rounded() + 0.5, right = x[c + 1].rounded() + 0.5
-            let top = y[r].rounded() + 0.5, bottom = y[r + 1].rounded() + 0.5
+        // the chosen cells: their + drawn on into one another round them, a frame of the same thin line, the same ink
+        if let sel = selection, sel.rows.upperBound < rows.count, sel.columns.upperBound < widths.count {
+            let left = x[sel.columns.lowerBound].rounded() + 0.5, right = x[sel.columns.upperBound + 1].rounded() + 0.5
+            let top = y[sel.rows.lowerBound].rounded() + 0.5, bottom = y[sel.rows.upperBound + 1].rounded() + 0.5
             let frame = NSBezierPath(rect: NSRect(x: left, y: top, width: right - left, height: bottom - top))
             frame.lineWidth = 1
             NSColor(white: 1, alpha: 0.32).setStroke()
@@ -234,6 +241,7 @@ final class TableView: Flipped, NSTextFieldDelegate {
             return
         }
         guard let at = cell(at: p) else { return }
+        if event.modifierFlags.contains(.shift) && chosen != nil { return extend(at.row, at.column) }
         choose(at.row, at.column)
         if event.clickCount == 2 { edit() }
     }
@@ -262,9 +270,78 @@ final class TableView: Flipped, NSTextFieldDelegate {
         guard !rows.isEmpty else { return }
         let row = max(0, min(rows.count - 1, r)), column = max(0, min(columns - 1, c))
         chosen = (row, column)
+        extent = nil
         window?.makeFirstResponder(self)
         scrollToVisible(cellRect(row, column).insetBy(dx: -24, dy: -24))
         needsDisplay = true
+    }
+
+    /// the cells chosen reach on to this one (⇧ and an arrow, ⇧-click)
+    func extend(_ r: Int, _ c: Int) {
+        guard chosen != nil, !rows.isEmpty else { return choose(r, c) }
+        let row = max(0, min(rows.count - 1, r)), column = max(0, min(columns - 1, c))
+        extent = (row, column)
+        scrollToVisible(cellRect(row, column).insetBy(dx: -24, dy: -24))
+        needsDisplay = true
+    }
+
+    // ── copied, cut and pasted (⌘C ⌘X ⌘V), as tabs between cells and lines between rows: as Numbers and
+    // Excel copy theirs, so cells go both ways ──
+
+    func copyCells() {
+        guard let sel = selection else { return }
+        let block = sel.rows.map { r in sel.columns.map { c in c < rows[r].count ? rows[r][c] : "" } }
+        let text = Table.write(block, name: "x.tsv", separator: "\t").dropLast()
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(String(text), forType: .string)
+    }
+
+    func cutCells() {
+        copyCells()
+        clear()
+    }
+
+    /// the cells chosen, emptied (one change)
+    func clear() {
+        guard let sel = selection else { return }
+        let any = sel.rows.contains { r in sel.columns.contains { c in c < rows[r].count && !rows[r][c].isEmpty } }
+        guard any else { return }
+        remember()
+        for r in sel.rows { for c in sel.columns where c < rows[r].count { rows[r][c] = "" } }
+        changed()
+    }
+
+    /// What was copied, from the chosen cell on (rows and columns added where it reaches past them); a single
+    /// value into several cells chosen fills them all.
+    func pasteCells() {
+        guard let sel = selection, let text = NSPasteboard.general.string(forType: .string), !text.isEmpty else { return }
+        commit()
+        let lines = text.hasSuffix("\n") ? String(text.dropLast()) : text
+        let block: [[String]] = lines.contains("\t") ? Table.parse(lines, name: "x.tsv")
+            : lines.components(separatedBy: "\n").map { [$0] }
+        guard !block.isEmpty else { return }
+        remember()
+        if block.count == 1 && block[0].count == 1 && (sel.rows.count > 1 || sel.columns.count > 1) {
+            for r in sel.rows { for c in sel.columns { put(block[0][0], r, c) } }
+        } else {
+            for (i, line) in block.enumerated() { for (j, value) in line.enumerated() { put(value, sel.rows.lowerBound + i, sel.columns.lowerBound + j) } }
+            chosen = (sel.rows.lowerBound, sel.columns.lowerBound)
+            extent = (sel.rows.lowerBound + block.count - 1, sel.columns.lowerBound + (block.map(\.count).max() ?? 1) - 1)
+        }
+        // every row as wide as the widest, so the file stays even
+        let n = columns
+        for i in rows.indices { while rows[i].count < n { rows[i].append("") } }
+        let keep = (chosen, extent)
+        changed()
+        chosen = keep.0; extent = keep.1
+        needsDisplay = true
+    }
+
+    /// a value into a cell, rows and columns added to reach it
+    private func put(_ value: String, _ r: Int, _ c: Int) {
+        while rows.count <= r { rows.append(Array(repeating: "", count: max(1, columns))) }
+        while rows[r].count <= c { rows[r].append("") }
+        rows[r][c] = value
     }
 
     /// The table's own keys while it is shown and nothing is being written: the arrows choose, Enter writes,
@@ -274,6 +351,17 @@ final class TableView: Flipped, NSTextFieldDelegate {
         if editing { return false }
         let mods = e.modifierFlags.intersection([.command, .control, .option, .shift])
         if e.keyCode == 6 && mods == .command { undo(); return true }
+        if mods == .command {
+            switch e.keyCode {
+            case 8: copyCells(); return true
+            case 7: cutCells(); return true
+            case 9: pasteCells(); return true
+            case 0:
+                if !rows.isEmpty { chosen = (0, 0); extent = (rows.count - 1, max(0, columns - 1)); needsDisplay = true }
+                return true
+            default: break
+            }
+        }
         if e.keyCode == 6 && mods == [.command, .shift] { redo(); return true }
         // rows and columns added (⇧⌘ and an arrow: on that side of the chosen cell) and taken away (⌘⌫ the row,
         // ⇧⌘⌫ the column)
@@ -298,15 +386,21 @@ final class TableView: Flipped, NSTextFieldDelegate {
         guard mods.isEmpty || mods == .shift else { return false }
         let (r, c) = chosen ?? (-1, -1)
         switch e.keyCode {
-        case 126: chosen == nil ? choose(0, 0) : choose(r - 1, c)
-        case 125: chosen == nil ? choose(0, 0) : choose(r + 1, c)
-        case 123: chosen == nil ? choose(0, 0) : choose(r, c - 1)
-        case 124: chosen == nil ? choose(0, 0) : choose(r, c + 1)
+        case 123, 124, 125, 126:
+            guard chosen != nil else { choose(0, 0); return true }
+            let (dr, dc) = [126: (-1, 0), 125: (1, 0), 123: (0, -1), 124: (0, 1)][Int(e.keyCode)]!
+            if mods == .shift {
+                // ⇧: the cells chosen reach on
+                let e0 = extent ?? chosen!
+                extend(e0.row + dr, e0.column + dc)
+            } else {
+                choose(r + dr, c + dc)
+            }
         case 48: if chosen != nil { mods == .shift ? choose(r, c - 1) : choose(r, c + 1) } else { choose(0, 0) }
         case 36, 76: if chosen == nil { choose(0, 0) } else { edit() }
         case 51, 117:
             guard chosen != nil else { return true }
-            set("", r, c)
+            if extent == nil { set("", r, c) } else { clear() }
         default: return false
         }
         return true
@@ -454,11 +548,15 @@ final class TableView: Flipped, NSTextFieldDelegate {
         commit()
         let p = convert(event.locationInWindow, from: nil)
         guard let at = cell(at: p) else { return nil }
-        choose(at.row, at.column)
+        if let sel = selection, sel.rows.contains(at.row), sel.columns.contains(at.column) {} else { choose(at.row, at.column) }
         let menu = NSMenu()
         let items: [(String, String, () -> Void)] = [
             ("Undo", "⌘Z", { [weak self] in self?.undo() }),
             ("Redo", "⇧⌘Z", { [weak self] in self?.redo() }),
+            ("", "", {}),
+            ("Cut", "⌘X", { [weak self] in self?.cutCells() }),
+            ("Copy", "⌘C", { [weak self] in self?.copyCells() }),
+            ("Paste", "⌘V", { [weak self] in self?.pasteCells() }),
             ("", "", {}),
             ("Row above", "⇧⌘↑", { [weak self] in self?.insertRow(at: at.row) }),
             ("Row below", "⇧⌘↓", { [weak self] in self?.insertRow(at: at.row + 1) }),
@@ -483,6 +581,7 @@ final class TableView: Flipped, NSTextFieldDelegate {
             if title.hasPrefix("Sort") { item.isEnabled = rows.count > 2 }
             if title == "Undo" { item.isEnabled = !undone.isEmpty }
             if title == "Redo" { item.isEnabled = !redone.isEmpty }
+            if title == "Paste" { item.isEnabled = NSPasteboard.general.string(forType: .string) != nil }
         }
         menu.autoenablesItems = false
         return menu
