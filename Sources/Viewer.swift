@@ -14,6 +14,18 @@ final class Viewer: Flipped, NSTextViewDelegate {
     private let truncated: Bool
     /// a table (CSV, TSV): shown as one, not written in
     private var table: TableView?
+    private var separator: Character = ","
+    /// a cell written in since the file was last kept: only then is it written (never just for being opened)
+    private var tableDirty = false
+
+    /// a cell written in: the file kept a moment later, as a text is
+    private func tableChanged() {
+        tableDirty = true
+        timer?.cancel()
+        let work = DispatchWorkItem { [weak self] in self?.save() }
+        timer = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.7, execute: work)
+    }
     private var saved = ""
     private var timer: DispatchWorkItem?
     private(set) var edited = false
@@ -77,6 +89,13 @@ final class Viewer: Flipped, NSTextViewDelegate {
             let t = TableView()
             t.fontSize = 14
             t.rows = Table.parse(t0, name: entry.name)
+            t.keep = entry.path
+            t.restore()
+            // written in, unless only its first megabyte is shown
+            t.editable = !truncated
+            separator = Table.separator(of: t0, name: entry.name)
+            t.onEdit = { [weak self] in self?.tableChanged() }
+            t.onResize = { [weak self] in self?.needsLayout = true }
             table = t
             text.isEditable = false
             scroll.documentView = t
@@ -107,7 +126,8 @@ final class Viewer: Flipped, NSTextViewDelegate {
     }
 
     func focus() {
-        if !scroll.isHidden && table == nil { window?.makeFirstResponder(text) }
+        if let table { return table.choose(0, 0) }
+        if !scroll.isHidden { window?.makeFirstResponder(text) }
     }
 
     // ── kept as it is written ──
@@ -123,7 +143,19 @@ final class Viewer: Flipped, NSTextViewDelegate {
     func save() {
         timer?.cancel()
         timer = nil
-        guard !scroll.isHidden, !truncated, table == nil, text.string != saved else { return }
+        if let table {
+            table.commit()
+            guard !truncated, tableDirty else { return }
+            let csv = Table.write(table.rows, name: entry.name, separator: separator)
+            do {
+                try Files.write(csv, to: entry.path)
+                saved = csv
+                tableDirty = false
+                edited = true
+            } catch {}
+            return
+        }
+        guard !scroll.isHidden, !truncated, text.string != saved else { return }
         do {
             try Files.write(text.string, to: entry.path)
             saved = text.string
@@ -133,6 +165,14 @@ final class Viewer: Flipped, NSTextViewDelegate {
 
     func key(_ e: NSEvent) -> Bool {
         let mods = e.modifierFlags.intersection([.command, .control, .option, .shift])
+        // a table: written in (its field has the keys), or its own keys (the arrows, Enter, Tab, ⌫)
+        if let table {
+            if table.editing { return false }
+            if mods == .command && e.keyCode == 1 { save(); return true }
+            if table.key(e) { return true }
+            if e.keyCode == 53 { if full { full = false } else { save(); onClose?() }; return true }
+            return mods == .command ? false : e.keyCode == 3 ? { full.toggle(); return true }() : true
+        }
         if window?.firstResponder === text {
             // in the text: it's typing, but for Esc (close) and ⌘S
             if e.keyCode == 53 { if full { full = false } else { onClose?() }; return true }
