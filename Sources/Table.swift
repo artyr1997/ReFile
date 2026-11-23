@@ -143,11 +143,14 @@ final class TableView: Flipped, NSTextFieldDelegate {
         let first = max(0, (y.firstIndex { $0 > dirtyRect.minY } ?? 1) - 2)
         let last = min(rows.count, (y.firstIndex { $0 > dirtyRect.maxY } ?? rows.count) + 1)
         guard first < last else { return }
-        // the chosen cell: a thin frame round it, as the apps frame a chosen button
+        // the chosen cell: its four + drawn on into one another, a frame of the same thin line, the same ink
         if let chosen, chosen.row < rows.count, chosen.column < widths.count {
-            let frame = NSBezierPath(rect: cellRect(chosen.row, chosen.column).insetBy(dx: 3.5, dy: 3.5))
+            let c = chosen.column, r = chosen.row
+            let left = x[c].rounded() + 0.5, right = x[c + 1].rounded() + 0.5
+            let top = y[r].rounded() + 0.5, bottom = y[r + 1].rounded() + 0.5
+            let frame = NSBezierPath(rect: NSRect(x: left, y: top, width: right - left, height: bottom - top))
             frame.lineWidth = 1
-            NSColor(white: 1, alpha: editing ? 0.85 : 0.6).setStroke()
+            NSColor(white: 1, alpha: 0.32).setStroke()
             frame.stroke()
         }
         let p = NSMutableParagraphStyle()
