@@ -5,7 +5,12 @@ cd "$(dirname "$0")"
 APP=build/ReFile.app
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-swiftc -O -o "$APP/Contents/MacOS/ReFile" Sources/*.swift
+# for every Mac from macOS 13 on, Apple silicon and Intel both
+for ARCH in arm64 x86_64; do
+  swiftc -O -module-name ReFile -target $ARCH-apple-macos13.0 -o "build/ReFile-$ARCH" Sources/*.swift
+done
+lipo -create -output "$APP/Contents/MacOS/ReFile" build/ReFile-arm64 build/ReFile-x86_64
+rm -f build/ReFile-arm64 build/ReFile-x86_64
 cp Info.plist "$APP/Contents/"
 cp -R Resources/* "$APP/Contents/Resources/"
 # ad-hoc, known by its identifier rather than by this build's hash
