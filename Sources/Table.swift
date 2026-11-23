@@ -163,14 +163,13 @@ final class TableView: Flipped, NSTextFieldDelegate {
         let first = max(0, (y.firstIndex { $0 > dirtyRect.minY } ?? 1) - 2)
         let last = min(rows.count, (y.firstIndex { $0 > dirtyRect.maxY } ?? rows.count) + 1)
         guard first < last else { return }
-        // the chosen cells: their + drawn on into one another round them, a frame of the same thin line, the same ink
+        // the chosen cells: their + drawn on into one another round them (the frame drawn with the marks below,
+        // in one stroke, so where they meet the line is the same, not twice as bright)
+        var frame: NSRect?
         if let sel = selection, sel.rows.upperBound < rows.count, sel.columns.upperBound < widths.count {
             let left = x[sel.columns.lowerBound].rounded() + 0.5, right = x[sel.columns.upperBound + 1].rounded() + 0.5
             let top = y[sel.rows.lowerBound].rounded() + 0.5, bottom = y[sel.rows.upperBound + 1].rounded() + 0.5
-            let frame = NSBezierPath(rect: NSRect(x: left, y: top, width: right - left, height: bottom - top))
-            frame.lineWidth = 1
-            NSColor(white: 1, alpha: 0.32).setStroke()
-            frame.stroke()
+            frame = NSRect(x: left, y: top, width: right - left, height: bottom - top)
         }
         let p = NSMutableParagraphStyle()
         p.lineBreakMode = .byTruncatingTail
@@ -202,6 +201,8 @@ final class TableView: Flipped, NSTextFieldDelegate {
                 marks.move(to: NSPoint(x: xx, y: yy - arm)); marks.line(to: NSPoint(x: xx, y: yy + arm))
             }
         }
+        if let frame { marks.appendRect(frame) }
+        // one path, one stroke: where the frame and a + lie over one another the line is drawn once
         NSColor(white: 1, alpha: 0.32).setStroke()
         marks.stroke()
     }
