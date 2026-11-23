@@ -7,6 +7,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var pending: [String] = []
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // the distances from the windows' edges, as set with ReDesk's keys
+        Spacing.start()
         // keys of one's own, as set in ReDesk's keys popup (⌘/)
         OwnKeys.start(app: "ReFile", standard: [
             "newWindow": .init(45, "n"),

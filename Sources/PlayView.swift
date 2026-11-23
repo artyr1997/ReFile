@@ -296,7 +296,7 @@ final class PlayView: Flipped {
         let W = bounds.width, H = bounds.height
         let small = W < 760 || H < 560
         let area = small ? NSRect(x: 40, y: 52, width: W - 80, height: H - 52 - 128)
-            : NSRect(x: W * 0.0625 + 96, y: H * 0.0625 + 40, width: W - 2 * (W * 0.0625 + 96), height: H - H * 0.0625 - 40 - (H * 0.0625 + 112))
+            : NSRect(x: W * Spacing.x + 96, y: H * Spacing.y + 40, width: W - 2 * (W * Spacing.x + 96), height: H - H * Spacing.y - 40 - (H * Spacing.y + 112))
         songs.frame = area
         if small {
             songs.columns = [Column(), Column(width: 56, size: 15, alpha: 0.6, align: .right)]
@@ -336,8 +336,8 @@ final class PlayView: Flipped {
             y += 18 + 14
             layoutControls(NSRect(x: (W - controlsW) / 2, y: y, width: controlsW, height: 36))
         } else {
-            let pw = small ? W - 80 : min(560, W - 2 * (W * 0.0625 + 100))
-            let bottom = small ? H - 14 : H - (H * 0.0625 - 14)
+            let pw = small ? W - 80 : min(560, W - 2 * (W * Spacing.x + 100))
+            let bottom = small ? H - 14 : H - (H * Spacing.y - 14)
             let gap: CGFloat = small ? 6 : 10
             var y = bottom - 36
             layoutControls(NSRect(x: (W - controlsW) / 2, y: y, width: controlsW, height: 36))

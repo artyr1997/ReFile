@@ -216,7 +216,7 @@ final class Viewer: Flipped, NSTextViewDelegate {
         titleLabel.frame = NSRect(x: (W - titleW) / 2, y: small ? 12 : 28, width: titleW, height: 32)
         let area = full ? bounds.insetBy(dx: 40, dy: 32)
             : small ? NSRect(x: 40, y: 52, width: W - 80, height: H - 104)
-            : NSRect(x: W * 0.0625 + 60, y: H * 0.0625 + 40, width: W - 2 * (W * 0.0625 + 60), height: H - 2 * H * 0.0625 - 84)
+            : NSRect(x: W * Spacing.x + 60, y: H * Spacing.y + 40, width: W - 2 * (W * Spacing.x + 60), height: H - 2 * H * Spacing.y - 84)
         titleLabel.isHidden = full
         foot.isHidden = full
         // the table's buttons at the corners, as ReFile places its own (none in a small window, only FULL in full)
@@ -224,8 +224,8 @@ final class Viewer: Flipped, NSTextViewDelegate {
             let left = i % 2 == 0, top = i < 2
             b.top = top
             let h = b.intrinsicContentSize.height
-            b.frame = NSRect(x: left ? W * 0.0625 - 28 : W - (W * 0.0625 - 28) - SideButton.width,
-                             y: top ? H * 0.0625 + 8 : H - H * 0.0625 - h, width: SideButton.width, height: h)
+            b.frame = NSRect(x: left ? W * Spacing.x - 28 : W - (W * Spacing.x - 28) - SideButton.width,
+                             y: top ? H * Spacing.y + 8 : H - H * Spacing.y - h, width: SideButton.width, height: h)
             // none in full: Esc or F brings them back
             b.isHidden = small || full
         }
@@ -241,7 +241,7 @@ final class Viewer: Flipped, NSTextViewDelegate {
             table.needsDisplay = true
         }
         // a table's line under it lower, near the window's foot, as ReSurf's address
-        let footUp: CGFloat = small ? 8 : table != nil ? H * 0.03125 : H * 0.0625 - 6
+        let footUp: CGFloat = small ? 8 : table != nil ? H * Spacing.y / 2 : H * Spacing.y - 6
         foot.frame = NSRect(x: 0, y: H - footUp - 30, width: W, height: 24)
     }
 }

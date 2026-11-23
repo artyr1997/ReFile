@@ -371,20 +371,20 @@ final class Reader: Flipped, WKNavigationDelegate {
         let small = W < 760 || H < 560
         stage.frame = full ? bounds.insetBy(dx: 6, dy: 6)
             : small ? NSRect(x: 24, y: 48, width: W - 48, height: H - 96)
-            : NSRect(x: W * 0.0625 + 44, y: H * 0.0625 + 24, width: W - 2 * (W * 0.0625 + 44), height: H - 2 * (H * 0.0625 + 24))
+            : NSRect(x: W * Spacing.x + 44, y: H * Spacing.y + 24, width: W - 2 * (W * Spacing.x + 44), height: H - 2 * (H * Spacing.y + 24))
         for v in [titleLabel, back, nextBook, fullButton, prev, next, pageLabel] as [NSView] { v.isHidden = full }
         manga.isHidden = full || !paged || small
         if small { back.isHidden = true; nextBook.isHidden = true; fullButton.isHidden = true }
         let tw = small ? W - 200 : W * 0.5
-        titleLabel.frame = NSRect(x: (W - tw) / 2, y: small ? 8 : H * 0.03125 + 12 - 16, width: tw, height: 32)
+        titleLabel.frame = NSRect(x: (W - tw) / 2, y: small ? 8 : H * Spacing.y / 2 + 12 - 16, width: tw, height: 32)
         // the corners, as the other side buttons: BACK and NEXT at the top, MANG and FULL at the bottom
-        let leftX = W * 0.0625 - 28, rightX = W - (W * 0.0625 - 28) - SideButton.width
+        let leftX = W * Spacing.x - 28, rightX = W - (W * Spacing.x - 28) - SideButton.width
         for (b, x, top) in [(back, leftX, true), (nextBook, rightX, true), (manga, leftX, false), (fullButton, rightX, false)] {
             b.top = true
             let h = b.intrinsicContentSize.height
-            b.frame = NSRect(x: x, y: top ? H * 0.0625 + 8 : H - H * 0.0625 - h, width: SideButton.width, height: h)
+            b.frame = NSRect(x: x, y: top ? H * Spacing.y + 8 : H - H * Spacing.y - h, width: SideButton.width, height: h)
         }
-        let py = H - (small ? 8 : H * 0.03125 + 12) - 16
+        let py = H - (small ? 8 : H * Spacing.y / 2 + 12) - 16
         let lw: CGFloat = 120
         pageLabel.frame = NSRect(x: (W - lw) / 2, y: py + 6, width: lw, height: 22)
         prev.frame = NSRect(x: (W - lw) / 2 - 24 - 24, y: py, width: 24, height: 32)

@@ -671,16 +671,16 @@ final class FileView: Flipped {
 
     private func place(_ b: SideButton, _ at: String) {
         let left = at.hasSuffix("Left")
-        let x = left ? W * 0.0625 - 28 : W - (W * 0.0625 - 28) - SideButton.width
+        let x = left ? W * Spacing.x - 28 : W - (W * Spacing.x - 28) - SideButton.width
         // the room over the first letter for all (a bottom one's letters stay where they are: it stands on its
         // bottom), so a chosen one's frame has as much over its letters as under them
         b.top = !b.boxed
         let h = b.intrinsicContentSize.height
         let y: CGFloat
         switch at {
-        case "topLeft", "topRight": y = H * 0.0625 + 8
+        case "topLeft", "topRight": y = H * Spacing.y + 8
         case "midLeft", "midRight": y = (H - h) / 2
-        default: y = H - H * 0.0625 - h
+        default: y = H - H * Spacing.y - h
         }
         b.frame = NSRect(x: x, y: y, width: SideButton.width, height: h)
     }
@@ -704,11 +704,11 @@ final class FileView: Flipped {
         titleLabel.isHidden = mode == .play
 
         // the lists: between the title and the search (in PLAY, between the search and the player)
-        var top: CGFloat = small ? 52 : H * 0.0625 + 40
-        var bottom: CGFloat = small ? 52 : H * 0.0625 + 44
+        var top: CGFloat = small ? 52 : H * Spacing.y + 40
+        var bottom: CGFloat = small ? 52 : H * Spacing.y + 44
         if mode == .play {
-            top = small ? 52 : H * 0.0625 + 40
-            bottom = small ? 128 : H * 0.0625 + 112
+            top = small ? 52 : H * Spacing.y + 40
+            bottom = small ? 128 : H * Spacing.y + 112
         }
         let listH = max(0, H - top - bottom)
         let colm = layoutShown == "colm"
@@ -729,8 +729,8 @@ final class FileView: Flipped {
             table.columnGap = 16
         } else {
             column.frame = NSRect(x: W * 0.213 - 9.6, y: top, width: W * 0.26 + 19.2, height: listH)
-            preview.frame = NSRect(x: W * 0.5 - 9.6, y: top, width: W * 0.5 - W * 0.0625 - 60 + 19.2, height: listH)
-            let tw = min(680, W - 2 * (W * 0.0625 + 60))
+            preview.frame = NSRect(x: W * 0.5 - 9.6, y: top, width: W * 0.5 - W * Spacing.x - 60 + 19.2, height: listH)
+            let tw = min(680, W - 2 * (W * Spacing.x + 60))
             table.frame = NSRect(x: (W - tw) / 2 - 9.6, y: top, width: tw + 19.2, height: listH)
             table.columns = [Column(), Column(width: 110, size: 14), Column(width: 220, size: 14)]
             table.columnGap = 24

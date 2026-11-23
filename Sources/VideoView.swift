@@ -202,7 +202,7 @@ final class VideoView: Flipped {
         let W = bounds.width, H = bounds.height
         let small = W < 760 || H < 560
         card.frame = full ? bounds.insetBy(dx: 6, dy: 6)
-            : NSRect(x: W * 0.0625 + 80, y: H * 0.0625 + 24, width: W - 2 * (W * 0.0625 + 80), height: H - 2 * (H * 0.0625 + 24))
+            : NSRect(x: W * Spacing.x + 80, y: H * Spacing.y + 24, width: W - 2 * (W * Spacing.x + 80), height: H - 2 * (H * Spacing.y + 24))
         if small && !full { card.frame = NSRect(x: 24, y: 48, width: W - 48, height: H - 96) }
         CATransaction.begin()
         CATransaction.setDisableActions(true)
@@ -217,17 +217,17 @@ final class VideoView: Flipped {
         failed.frame = NSRect(x: 0, y: card.bounds.height / 2 - 12, width: card.bounds.width, height: 24)
         for v in [titleLabel, name, prev, next, back, fullButton] as [NSView] { v.isHidden = full }
         let tw = W * 0.6
-        titleLabel.frame = NSRect(x: (W - tw) / 2, y: H * 0.03125 + 12 - 16, width: tw, height: 32)
+        titleLabel.frame = NSRect(x: (W - tw) / 2, y: H * Spacing.y / 2 + 12 - 16, width: tw, height: 32)
         let nw = min(W * 0.7 - 120, attributed(name.stringValue, Fonts.words(18)).size().width + 8)
-        let py = H - (H * 0.03125 + 12) - 16
+        let py = H - (H * Spacing.y / 2 + 12) - 16
         name.frame = NSRect(x: (W - nw) / 2, y: py, width: nw, height: 32)
         prev.frame = NSRect(x: name.frame.minX - 64 - 24, y: py, width: 24, height: 32)
         next.frame = NSRect(x: name.frame.maxX + 64, y: py, width: 24, height: 32)
         back.top = true
         let bh = back.intrinsicContentSize.height
-        back.frame = NSRect(x: W * 0.0625 - 28, y: H * 0.0625 + 8, width: SideButton.width, height: bh)
+        back.frame = NSRect(x: W * Spacing.x - 28, y: H * Spacing.y + 8, width: SideButton.width, height: bh)
         let fh = fullButton.intrinsicContentSize.height
-        fullButton.frame = NSRect(x: W - (W * 0.0625 - 28) - SideButton.width, y: H - H * 0.0625 - fh, width: SideButton.width, height: fh)
+        fullButton.frame = NSRect(x: W - (W * Spacing.x - 28) - SideButton.width, y: H - H * Spacing.y - fh, width: SideButton.width, height: fh)
         fullButton.chosen = full
         back.isHidden = back.isHidden || small
         fullButton.isHidden = fullButton.isHidden || small
