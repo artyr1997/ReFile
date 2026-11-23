@@ -193,6 +193,8 @@ final class TableView: Flipped, NSTextFieldDelegate {
     private enum Drag { case column(Int, CGFloat), row(Int, CGFloat) }
     private var drag: Drag?
     private var dragFrom: CGFloat = 0
+    /// the sizes before a drag kept (once it moves) to undo it
+    private var dragKept = false
 
     /// the line under the point: a column's right edge, or a row's foot
     private func line(at p: NSPoint) -> Drag? {
@@ -226,6 +228,7 @@ final class TableView: Flipped, NSTextFieldDelegate {
         let p = convert(event.locationInWindow, from: nil)
         commit()
         if let d = line(at: p) {
+            dragKept = false
             drag = d
             dragFrom = { if case .column = d { return p.x } else { return p.y } }()
             return
@@ -237,6 +240,7 @@ final class TableView: Flipped, NSTextFieldDelegate {
 
     override func mouseDragged(with event: NSEvent) {
         guard let drag else { return }
+        if !dragKept { dragKept = true; remember() }
         let p = convert(event.locationInWindow, from: nil)
         switch drag {
         case .column(let c, let start):
@@ -269,6 +273,8 @@ final class TableView: Flipped, NSTextFieldDelegate {
         guard editable else { return false }
         if editing { return false }
         let mods = e.modifierFlags.intersection([.command, .control, .option, .shift])
+        if e.keyCode == 6 && mods == .command { undo(); return true }
+        if e.keyCode == 6 && mods == [.command, .shift] { redo(); return true }
         // rows and columns added (⇧⌘ and an arrow: on that side of the chosen cell) and taken away (⌘⌫ the row,
         // ⇧⌘⌫ the column)
         if let (r, c) = chosen {
@@ -318,6 +324,7 @@ final class TableView: Flipped, NSTextFieldDelegate {
     }
 
     func insertRow(at r: Int) {
+        remember()
         let at = max(0, min(rows.count, r))
         rows.insert(Array(repeating: "", count: max(1, columns)), at: at)
         shift(&setHeights, from: at, by: 1)
@@ -327,6 +334,7 @@ final class TableView: Flipped, NSTextFieldDelegate {
 
     func deleteRow(_ r: Int) {
         guard rows.count > 1, r < rows.count else { return }
+        remember()
         rows.remove(at: r)
         shift(&setHeights, from: r, by: -1)
         changed()
@@ -334,6 +342,7 @@ final class TableView: Flipped, NSTextFieldDelegate {
     }
 
     func insertColumn(at c: Int) {
+        remember()
         let at = max(0, min(columns, c))
         sorted = nil
         for i in rows.indices {
@@ -349,11 +358,54 @@ final class TableView: Flipped, NSTextFieldDelegate {
 
     func deleteColumn(_ c: Int) {
         guard columns > 1, c < columns else { return }
+        remember()
         sorted = nil
         for i in rows.indices where c < rows[i].count { rows[i].remove(at: c) }
         shift(&setWidths, from: c, by: -1)
         changed()
         choose(chosen?.row ?? 0, min(c, columns - 1))
+    }
+
+    // ── undone and done again (⌘Z, ⇧⌘Z): every change kept as it was before it ──
+
+    private struct State {
+        let rows: [[String]]
+        let widths: [Int: CGFloat]
+        let heights: [Int: CGFloat]
+        let sorted: (column: Int, ascending: Bool)?
+        let chosen: (row: Int, column: Int)?
+    }
+    private var undone: [State] = []
+    private var redone: [State] = []
+    private var now: State { State(rows: rows, widths: setWidths, heights: setHeights, sorted: sorted, chosen: chosen) }
+
+    /// what the table is now, kept to come back to (before a change)
+    private func remember() {
+        undone.append(now)
+        if undone.count > 200 { undone.removeFirst() }
+        redone = []
+    }
+
+    private func restore(_ state: State) {
+        rows = state.rows
+        setWidths = state.widths
+        setHeights = state.heights
+        sorted = state.sorted
+        changed()
+        if let c = state.chosen { choose(c.row, c.column) }
+    }
+
+    func undo() {
+        commit()
+        guard let last = undone.popLast() else { return NSSound.beep() }
+        redone.append(now)
+        restore(last)
+    }
+
+    func redo() {
+        guard let next = redone.popLast() else { return NSSound.beep() }
+        undone.append(now)
+        restore(next)
     }
 
     /// the column the rows were last sorted by, and which way (an arrow by its name)
@@ -364,6 +416,7 @@ final class TableView: Flipped, NSTextFieldDelegate {
     func sort(by c: Int, ascending: Bool) {
         guard rows.count > 2 else { return }
         commit()
+        remember()
         let value = { (i: Int) -> String in c < self.rows[i].count ? self.rows[i][c].trimmingCharacters(in: .whitespaces) : "" }
         let number = { (t: String) -> Double? in Double(t.replacingOccurrences(of: ",", with: ".").replacingOccurrences(of: " ", with: "")) }
         let order = (1..<rows.count).sorted { a, b in
@@ -404,6 +457,9 @@ final class TableView: Flipped, NSTextFieldDelegate {
         choose(at.row, at.column)
         let menu = NSMenu()
         let items: [(String, String, () -> Void)] = [
+            ("Undo", "⌘Z", { [weak self] in self?.undo() }),
+            ("Redo", "⇧⌘Z", { [weak self] in self?.redo() }),
+            ("", "", {}),
             ("Row above", "⇧⌘↑", { [weak self] in self?.insertRow(at: at.row) }),
             ("Row below", "⇧⌘↓", { [weak self] in self?.insertRow(at: at.row + 1) }),
             ("Column left", "⇧⌘←", { [weak self] in self?.insertColumn(at: at.column) }),
@@ -425,6 +481,8 @@ final class TableView: Flipped, NSTextFieldDelegate {
             if title == "Delete row" { item.isEnabled = rows.count > 1 }
             if title == "Delete column" { item.isEnabled = columns > 1 }
             if title.hasPrefix("Sort") { item.isEnabled = rows.count > 2 }
+            if title == "Undo" { item.isEnabled = !undone.isEmpty }
+            if title == "Redo" { item.isEnabled = !redone.isEmpty }
         }
         menu.autoenablesItems = false
         return menu
@@ -432,8 +490,9 @@ final class TableView: Flipped, NSTextFieldDelegate {
     private var menuActions: [MenuAction] = []
 
     private func set(_ value: String, _ r: Int, _ c: Int) {
+        guard (c < rows[r].count ? rows[r][c] : "") != value else { return }
+        remember()
         while rows[r].count <= c { rows[r].append("") }
-        guard rows[r][c] != value else { return }
         rows[r][c] = value
         onEdit?()
     }
