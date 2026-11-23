@@ -85,6 +85,8 @@ final class Lang {
         "CLOSE": "閲覧終了",
         "BACK": "前に戻る",
         "FULL": "全画面化",
+        "NEW ROW": "行を追加",
+        "SORT": "並べ替え",
         "MANG": "右から左",
         "NEXT BOOK": "次の本へ",
         "FAVO": "栞を挟む",

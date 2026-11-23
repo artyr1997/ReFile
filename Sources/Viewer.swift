@@ -14,6 +14,9 @@ final class Viewer: Flipped, NSTextViewDelegate {
     private let truncated: Bool
     /// a table (CSV, TSV): shown as one, not written in
     private var table: TableView?
+    /// a table's side buttons, at the window's corners as everywhere in ReFile: BACK (closed), NOVA (a row
+    /// under the chosen cell), SORT (by its column; again, the other way), FULL
+    private var sides: [SideButton] = []
     private var separator: Character = ","
     /// a cell written in since the file was last kept: only then is it written (never just for being opened)
     private var tableDirty = false
@@ -97,6 +100,20 @@ final class Viewer: Flipped, NSTextViewDelegate {
             t.onEdit = { [weak self] in self?.tableChanged() }
             t.onResize = { [weak self] in self?.needsLayout = true }
             table = t
+            let back = SideButton("BACK") { [weak self] in self?.save(); self?.onClose?() }
+            let nova = SideButton("NOVA", as: "NEW ROW") { [weak t] in
+                guard let t else { return }
+                t.insertRow(at: (t.chosen?.row ?? t.rows.count - 1) + 1)
+            }
+            let sort = SideButton("SORT") { [weak t] in
+                guard let t else { return }
+                let c = t.chosen?.column ?? 0
+                t.sort(by: c, ascending: !(t.sorted?.column == c && t.sorted?.ascending == true))
+            }
+            let fullB = SideButton("FULL") { [weak self] in self?.full.toggle() }
+            nova.enabled = t.editable
+            sort.enabled = t.editable
+            sides = [back, nova, sort, fullB]
             text.isEditable = false
             scroll.documentView = t
             scroll.hasHorizontalScroller = false
@@ -114,6 +131,7 @@ final class Viewer: Flipped, NSTextViewDelegate {
         addSubview(image)
         addSubview(scroll)
         addSubview(foot)
+        sides.forEach { addSubview($0) }
         showFoot()
     }
 
@@ -201,6 +219,16 @@ final class Viewer: Flipped, NSTextViewDelegate {
             : NSRect(x: W * 0.0625 + 60, y: H * 0.0625 + 40, width: W - 2 * (W * 0.0625 + 60), height: H - 2 * H * 0.0625 - 84)
         titleLabel.isHidden = full
         foot.isHidden = full
+        // the table's buttons at the corners, as ReFile places its own (none in a small window, only FULL in full)
+        for (i, b) in sides.enumerated() {
+            let left = i % 2 == 0, top = i < 2
+            b.top = top
+            let h = b.intrinsicContentSize.height
+            b.frame = NSRect(x: left ? W * 0.0625 - 28 : W - (W * 0.0625 - 28) - SideButton.width,
+                             y: top ? H * 0.0625 + 8 : H - H * 0.0625 - h, width: SideButton.width, height: h)
+            b.isHidden = small || (full && i != 3)
+        }
+        if sides.count == 4 { sides[3].chosen = full }
         image.frame = area
         scroll.frame = area
         text.frame.size.width = scroll.contentSize.width
