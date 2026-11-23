@@ -671,16 +671,17 @@ final class FileView: Flipped {
 
     private func place(_ b: SideButton, _ at: String) {
         let left = at.hasSuffix("Left")
-        let x = left ? W * Spacing.x - 28 : W - (W * Spacing.x - 28) - SideButton.width
+        // on the buttons' column, as far from the edge as from what is shown
+        let x = left ? Spacing.column(W) - SideButton.width / 2 : W - Spacing.column(W) - SideButton.width / 2
         // the room over the first letter for all (a bottom one's letters stay where they are: it stands on its
         // bottom), so a chosen one's frame has as much over its letters as under them
         b.top = !b.boxed
         let h = b.intrinsicContentSize.height
         let y: CGFloat
         switch at {
-        case "topLeft", "topRight": y = H * Spacing.y + 8
+        case "topLeft", "topRight": y = Spacing.innerTop(H)
         case "midLeft", "midRight": y = (H - h) / 2
-        default: y = H - H * Spacing.y - h
+        default: y = H - Spacing.innerTop(H) - h
         }
         b.frame = NSRect(x: x, y: y, width: SideButton.width, height: h)
     }
@@ -700,15 +701,17 @@ final class FileView: Flipped {
         marks.frame = NSRect(x: 14, y: 14, width: 13, height: 40)
 
         let titleW = small ? W - 200 : W * 0.5
-        titleLabel.frame = NSRect(x: (W - titleW) / 2, y: small ? 12 : 28, width: titleW, height: 32)
+        // the title's middle on its line, halfway between the top and the lists
+        titleLabel.frame = NSRect(x: (W - titleW) / 2, y: small ? 12 : Spacing.band(H) - 16, width: titleW, height: 32)
         titleLabel.isHidden = mode == .play
 
-        // the lists: between the title and the search (in PLAY, between the search and the player)
-        var top: CGFloat = small ? 52 : H * Spacing.y + 40
-        var bottom: CGFloat = small ? 52 : H * Spacing.y + 44
+        // the lists: between the title and the search (in PLAY, between the search and the player), level with
+        // the side buttons' tops and feet
+        var top: CGFloat = small ? 52 : Spacing.innerTop(H)
+        var bottom: CGFloat = small ? 52 : Spacing.innerTop(H)
         if mode == .play {
-            top = small ? 52 : H * Spacing.y + 40
-            bottom = small ? 128 : H * Spacing.y + 112
+            top = small ? 52 : Spacing.innerTop(H)
+            bottom = small ? 128 : Spacing.innerTop(H) + 72
         }
         let listH = max(0, H - top - bottom)
         let colm = layoutShown == "colm"
@@ -729,8 +732,8 @@ final class FileView: Flipped {
             table.columnGap = 16
         } else {
             column.frame = NSRect(x: W * 0.213 - 9.6, y: top, width: W * 0.26 + 19.2, height: listH)
-            preview.frame = NSRect(x: W * 0.5 - 9.6, y: top, width: W * 0.5 - W * Spacing.x - 60 + 19.2, height: listH)
-            let tw = min(680, W - 2 * (W * Spacing.x + 60))
+            preview.frame = NSRect(x: W * 0.5 - 9.6, y: top, width: W * 0.5 - Spacing.inner(W) + 19.2, height: listH)
+            let tw = min(680, W - 2 * Spacing.inner(W))
             table.frame = NSRect(x: (W - tw) / 2 - 9.6, y: top, width: tw + 19.2, height: listH)
             table.columns = [Column(), Column(width: 110, size: 14), Column(width: 220, size: 14)]
             table.columnGap = 24
@@ -741,8 +744,8 @@ final class FileView: Flipped {
         let searchW = small ? W - 200 : 360
         search.isHidden = mini || viewer != nil || reader != nil || video != nil
         search.frame = mode == .play
-            ? NSRect(x: (W - searchW) / 2, y: small ? 12 : 28, width: searchW, height: 32)
-            : NSRect(x: (W - searchW) / 2, y: H - (small ? 8 : 28) - 32, width: searchW, height: 32)
+            ? NSRect(x: (W - searchW) / 2, y: small ? 12 : Spacing.band(H) - 16, width: searchW, height: 32)
+            : NSRect(x: (W - searchW) / 2, y: small ? H - 8 - 32 : H - Spacing.band(H) - 16, width: searchW, height: 32)
 
         popup?.frame = bounds
     }

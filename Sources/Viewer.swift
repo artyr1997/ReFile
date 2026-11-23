@@ -213,10 +213,10 @@ final class Viewer: Flipped, NSTextViewDelegate {
         let W = bounds.width, H = bounds.height
         let small = W < 760 || H < 560
         let titleW = small ? W - 200 : W * 0.5
-        titleLabel.frame = NSRect(x: (W - titleW) / 2, y: small ? 12 : 28, width: titleW, height: 32)
+        titleLabel.frame = NSRect(x: (W - titleW) / 2, y: small ? 12 : Spacing.band(H) - 16, width: titleW, height: 32)
         let area = full ? bounds.insetBy(dx: 40, dy: 32)
             : small ? NSRect(x: 40, y: 52, width: W - 80, height: H - 104)
-            : NSRect(x: W * Spacing.x + 60, y: H * Spacing.y + 40, width: W - 2 * (W * Spacing.x + 60), height: H - 2 * H * Spacing.y - 84)
+            : Spacing.content(W, H)
         titleLabel.isHidden = full
         foot.isHidden = full
         // the table's buttons at the corners, as ReFile places its own (none in a small window, only FULL in full)
@@ -224,8 +224,7 @@ final class Viewer: Flipped, NSTextViewDelegate {
             let left = i % 2 == 0, top = i < 2
             b.top = top
             let h = b.intrinsicContentSize.height
-            b.frame = NSRect(x: left ? W * Spacing.x - 28 : W - (W * Spacing.x - 28) - SideButton.width,
-                             y: top ? H * Spacing.y + 8 : H - H * Spacing.y - h, width: SideButton.width, height: h)
+            b.frame = Spacing.button(width: SideButton.width, height: h, left: left, top: top, W, H)
             // none in full: Esc or F brings them back
             b.isHidden = small || full
         }
@@ -241,7 +240,7 @@ final class Viewer: Flipped, NSTextViewDelegate {
             table.needsDisplay = true
         }
         // a table's line under it lower, near the window's foot, as ReSurf's address
-        let footUp: CGFloat = small ? 8 : table != nil ? H * Spacing.y / 2 : H * Spacing.y - 6
-        foot.frame = NSRect(x: 0, y: H - footUp - 30, width: W, height: 24)
+        // the line under it: its middle on the foot's line, halfway between what is shown and the bottom
+        foot.frame = small ? NSRect(x: 0, y: H - 8 - 30, width: W, height: 24) : NSRect(x: 0, y: H - Spacing.band(H) - 12, width: W, height: 24)
     }
 }
