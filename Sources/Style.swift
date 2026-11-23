@@ -121,7 +121,7 @@ final class Lang {
         "Show in Finder": "Finderで表示",
         "Add to wallpapers": "壁紙に追加",
         "Row above": "上に行を追加", "Row below": "下に行を追加", "Column left": "左に列を追加", "Column right": "右に列を追加",
-        "Delete row": "行を削除", "Delete column": "列を削除",
+        "Delete row": "行を削除", "Delete column": "列を削除", "Sort A → Z": "昇順に並べる", "Sort Z → A": "降順に並べる",
         "Info": "情報",
         "Move to Trash": "ゴミ箱に入れる",
         "Kind": "種類",

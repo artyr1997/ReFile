@@ -163,7 +163,8 @@ final class TableView: Flipped, NSTextFieldDelegate {
             ]
             for (c, cell) in rows[r].enumerated() where c < widths.count {
                 if editing, let chosen, chosen.row == r, chosen.column == c { continue }
-                let one = cell.replacingOccurrences(of: "\n", with: " ")
+                var one = cell.replacingOccurrences(of: "\n", with: " ")
+                if header, let sorted, sorted.column == c { one += sorted.ascending ? "  ↑" : "  ↓" }
                 let s = NSAttributedString(string: one, attributes: attrs)
                 let h = s.size().height
                 s.draw(with: NSRect(x: x[c] + cellPad, y: y[r] + (height(r) - h) / 2, width: widths[c] - cellPad * 2, height: h + 2),
@@ -283,6 +284,11 @@ final class TableView: Flipped, NSTextFieldDelegate {
             }
             if mods == .command && (e.keyCode == 51 || e.keyCode == 117) { deleteRow(r); return true }
         }
+        // sorted by the chosen cell's column: ⌃⇧↓ A to Z, ⌃⇧↑ Z to A
+        if let (_, c) = chosen, mods == [.control, .shift], e.keyCode == 125 || e.keyCode == 126 {
+            sort(by: c, ascending: e.keyCode == 125)
+            return true
+        }
         guard mods.isEmpty || mods == .shift else { return false }
         let (r, c) = chosen ?? (-1, -1)
         switch e.keyCode {
@@ -329,6 +335,7 @@ final class TableView: Flipped, NSTextFieldDelegate {
 
     func insertColumn(at c: Int) {
         let at = max(0, min(columns, c))
+        sorted = nil
         for i in rows.indices {
             while rows[i].count < at { rows[i].append("") }
             rows[i].insert("", at: at)
@@ -342,10 +349,43 @@ final class TableView: Flipped, NSTextFieldDelegate {
 
     func deleteColumn(_ c: Int) {
         guard columns > 1, c < columns else { return }
+        sorted = nil
         for i in rows.indices where c < rows[i].count { rows[i].remove(at: c) }
         shift(&setWidths, from: c, by: -1)
         changed()
         choose(chosen?.row ?? 0, min(c, columns - 1))
+    }
+
+    /// the column the rows were last sorted by, and which way (an arrow by its name)
+    private(set) var sorted: (column: Int, ascending: Bool)?
+
+    /// The rows under the first (the columns' names) sorted by a column: numbers as numbers (2 before 10),
+    /// words as Finder sorts names, the empty last; rows alike keep their order. Their heights go with them.
+    func sort(by c: Int, ascending: Bool) {
+        guard rows.count > 2 else { return }
+        commit()
+        let value = { (i: Int) -> String in c < self.rows[i].count ? self.rows[i][c].trimmingCharacters(in: .whitespaces) : "" }
+        let number = { (t: String) -> Double? in Double(t.replacingOccurrences(of: ",", with: ".").replacingOccurrences(of: " ", with: "")) }
+        let order = (1..<rows.count).sorted { a, b in
+            let x = value(a), y = value(b)
+            if x.isEmpty != y.isEmpty { return !x.isEmpty }
+            if x.isEmpty { return a < b }
+            let result: ComparisonResult
+            if let nx = number(x), let ny = number(y) { result = nx < ny ? .orderedAscending : nx > ny ? .orderedDescending : .orderedSame }
+            else { result = x.localizedStandardCompare(y) }
+            if result == .orderedSame { return a < b }
+            return ascending ? result == .orderedAscending : result == .orderedDescending
+        }
+        let chosenRow = chosen?.row
+        let heights = setHeights
+        rows = [rows[0]] + order.map { rows[$0] }
+        setHeights = [:]
+        if let h = heights[0] { setHeights[0] = h }
+        for (new, old) in order.enumerated() { if let h = heights[old] { setHeights[new + 1] = h } }
+        sorted = (c, ascending)
+        changed()
+        // the chosen cell stays on its row, wherever it went
+        if let chosenRow, chosenRow > 0, let to = order.firstIndex(of: chosenRow) { choose(to + 1, c) } else { choose(chosen?.row ?? 0, c) }
     }
 
     private func changed() {
@@ -369,6 +409,9 @@ final class TableView: Flipped, NSTextFieldDelegate {
             ("Column left", "⇧⌘←", { [weak self] in self?.insertColumn(at: at.column) }),
             ("Column right", "⇧⌘→", { [weak self] in self?.insertColumn(at: at.column + 1) }),
             ("", "", {}),
+            ("Sort A → Z", "⌃⇧↓", { [weak self] in self?.sort(by: at.column, ascending: true) }),
+            ("Sort Z → A", "⌃⇧↑", { [weak self] in self?.sort(by: at.column, ascending: false) }),
+            ("", "", {}),
             ("Delete row", "⌘⌫", { [weak self] in self?.deleteRow(at.row) }),
             ("Delete column", "⇧⌘⌫", { [weak self] in self?.deleteColumn(at.column) }),
         ]
@@ -381,6 +424,7 @@ final class TableView: Flipped, NSTextFieldDelegate {
             item.target = action
             if title == "Delete row" { item.isEnabled = rows.count > 1 }
             if title == "Delete column" { item.isEnabled = columns > 1 }
+            if title.hasPrefix("Sort") { item.isEnabled = rows.count > 2 }
         }
         menu.autoenablesItems = false
         return menu
