@@ -226,9 +226,9 @@ final class Viewer: Flipped, NSTextViewDelegate {
             let h = b.intrinsicContentSize.height
             b.frame = NSRect(x: left ? W * 0.0625 - 28 : W - (W * 0.0625 - 28) - SideButton.width,
                              y: top ? H * 0.0625 + 8 : H - H * 0.0625 - h, width: SideButton.width, height: h)
-            b.isHidden = small || (full && i != 3)
+            // none in full: Esc or F brings them back
+            b.isHidden = small || full
         }
-        if sides.count == 4 { sides[3].chosen = full }
         image.frame = area
         scroll.frame = area
         text.frame.size.width = scroll.contentSize.width
@@ -240,6 +240,8 @@ final class Viewer: Flipped, NSTextViewDelegate {
             table.frame = NSRect(x: 0, y: 0, width: max(s.width, scroll.contentSize.width), height: max(s.height, scroll.contentSize.height))
             table.needsDisplay = true
         }
-        foot.frame = NSRect(x: 0, y: H - (small ? 8 : H * 0.0625 - 6) - 30, width: W, height: 24)
+        // a table's line under it lower, near the window's foot, as ReSurf's address
+        let footUp: CGFloat = small ? 8 : table != nil ? H * 0.03125 : H * 0.0625 - 6
+        foot.frame = NSRect(x: 0, y: H - footUp - 30, width: W, height: 24)
     }
 }

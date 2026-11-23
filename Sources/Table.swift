@@ -59,6 +59,18 @@ extension Table {
         }.joined(separator: "\n") + "\n"
     }
 
+    /// A date as a number to sort by (days since year 0, roughly): 1.5.2026, 1/5/2026, 1-5-2026 (day first),
+    /// 2026-05-01 (year first). Nil for anything else.
+    static func date(_ t: String) -> Double? {
+        let parts = t.split(whereSeparator: { ".-/".contains($0) }).map(String.init)
+        guard parts.count == 3, parts.allSatisfy({ !$0.isEmpty && $0.allSatisfy(\.isNumber) }) else { return nil }
+        let n = parts.compactMap { Int($0) }
+        guard n.count == 3 else { return nil }
+        let (d, m, y) = parts[0].count == 4 ? (n[2], n[1], n[0]) : (n[0], n[1], n[2] < 100 ? n[2] + 2000 : n[2])
+        guard (1...31).contains(d), (1...12).contains(m) else { return nil }
+        return Double(y * 372 + m * 31 + d)
+    }
+
     static func separator(of text: String, name: String) -> Character {
         let first = text.prefix { $0 != "\n" }
         return Files.ext(name) == "tsv" ? "\t" : first.filter { $0 == ";" }.count > first.filter { $0 == "," }.count ? ";" : ","
@@ -512,7 +524,7 @@ final class TableView: Flipped, NSTextFieldDelegate {
         commit()
         remember()
         let value = { (i: Int) -> String in c < self.rows[i].count ? self.rows[i][c].trimmingCharacters(in: .whitespaces) : "" }
-        let number = { (t: String) -> Double? in Double(t.replacingOccurrences(of: ",", with: ".").replacingOccurrences(of: " ", with: "")) }
+        let number = { (t: String) -> Double? in Table.date(t) ?? Double(t.replacingOccurrences(of: ",", with: ".").replacingOccurrences(of: " ", with: "")) }
         let order = (1..<rows.count).sorted { a, b in
             let x = value(a), y = value(b)
             if x.isEmpty != y.isEmpty { return !x.isEmpty }
