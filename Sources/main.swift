@@ -11,7 +11,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Spacing.start()
         // keys of one's own, as set in ReDesk's keys popup (⌘/)
         OwnKeys.start(app: "ReFile", standard: [
-            "newWindow": .init(45, "n"),
+            "newWindow": .init(45, "n"), "allInside": .init(36, "\r", .shift), "up": .init(126, "\u{F700}", []),
+            "down": .init(125, "\u{F701}", []), "left": .init(123, "\u{F702}", []), "right": .init(124, "\u{F703}", []),
+            "enter": .init(36, "\r", []), "search": .init(44, "/", []), "columns": .init(8, "c", []),
+            "list": .init(37, "l", []), "sortName": .init(18, "1", [.control, .command]), "sortKind": .init(19, "2", [.control, .command]),
+            "sortDate": .init(20, "3", [.control, .command]), "sortSize": .init(21, "4", [.control, .command]), "newFolder": .init(45, "n", []),
+            "info": .init(34, "i", []), "trash": .init(51, "\u{7F}", []), "folder": .init(18, "1", []),
+            "songs": .init(19, "2", []), "radio": .init(20, "3", []), "space": .init(49, " ", []),
+            "shuffle": .init(1, "s", []), "repeat": .init(15, "r", []), "queue": .init(12, "q", []),
+            "keep": .init(40, "k", []), "mini": .init(46, "m", []), "full": .init(3, "f", []),
+            "moreLeft": .init(123, "\u{F702}", .shift), "moreRight": .init(124, "\u{F703}", .shift), "moreUp": .init(126, "\u{F700}", .shift),
+            "moreDown": .init(125, "\u{F701}", .shift), "selectAll": .init(0, "a"), "copy": .init(8, "c"),
+            "cut": .init(7, "x"), "paste": .init(9, "v"), "addLeft": .init(123, "\u{F702}", [.shift, .command]),
+            "addRight": .init(124, "\u{F703}", [.shift, .command]), "addUp": .init(126, "\u{F700}", [.shift, .command]), "addDown": .init(125, "\u{F701}", [.shift, .command]),
+            "deleteRow": .init(51, "\u{7F}"), "deleteColumn": .init(51, "\u{7F}", [.shift, .command]), "sortDown": .init(125, "\u{F701}", [.control, .shift]),
+            "sortUp": .init(126, "\u{F700}", [.control, .shift]), "undo": .init(6, "z"), "redo": .init(6, "z", [.shift, .command]),
         ])
         NSApp.appearance = NSAppearance(named: .darkAqua)
         NSApp.mainMenu = menu()
